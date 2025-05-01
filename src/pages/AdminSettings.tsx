@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Header } from '@/components/Header';
+import { TeamManagement } from '@/components/TeamManagement';
 
 export default function AdminSettings() {
   const { user } = useAuth();
@@ -25,13 +26,18 @@ export default function AdminSettings() {
           <h1 className="text-3xl font-bold">Admin Settings</h1>
           
           <Tabs defaultValue="users">
-            <TabsList className="grid w-full md:w-[400px] grid-cols-2">
+            <TabsList className="grid w-full md:w-[500px] grid-cols-3">
               <TabsTrigger value="users">User Management</TabsTrigger>
+              <TabsTrigger value="teams">Team Management</TabsTrigger>
               <TabsTrigger value="system">System Settings</TabsTrigger>
             </TabsList>
             
             <TabsContent value="users" className="space-y-4 mt-4">
               <UserRoleManagement />
+            </TabsContent>
+
+            <TabsContent value="teams" className="space-y-4 mt-4">
+              <TeamManagement />
             </TabsContent>
             
             <TabsContent value="system" className="space-y-4 mt-4">

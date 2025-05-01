@@ -8,6 +8,8 @@ export interface User {
   role: UserRole;
   createdAt: string;
   updatedAt: string;
+  teamId?: string; // ID of the team the user belongs to (for employees)
+  teamMembers?: string[]; // IDs of team members (for team leads)
 }
 
 export interface AuthState {
@@ -15,4 +17,11 @@ export interface AuthState {
   user: User | null;
   isLoading: boolean;
   error: string | null;
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  leadId: string;
+  memberIds: string[];
 }
