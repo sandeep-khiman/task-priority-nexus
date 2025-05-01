@@ -6,6 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useTaskContext } from '@/contexts/TaskContext';
 import { cn } from '@/lib/utils';
+import { EditTaskDialog } from './EditTaskDialog';
 
 interface TaskCardProps {
   task: Task;
@@ -55,14 +56,17 @@ export function TaskCard({ task, draggable = true }: TaskCardProps) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
             <h3 className="font-medium truncate text-sm">{task.title}</h3>
-            <Checkbox 
-              checked={task.completed} 
-              onCheckedChange={() => {
-                toggleTaskCompletion(task.id);
-              }}
-              onClick={(e) => e.stopPropagation()}
-              className="ml-2 h-4 w-4"
-            />
+            <div className="flex items-center">
+              <EditTaskDialog task={task} />
+              <Checkbox 
+                checked={task.completed} 
+                onCheckedChange={() => {
+                  toggleTaskCompletion(task.id);
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="ml-2 h-4 w-4"
+              />
+            </div>
           </div>
           
           <div className="flex flex-wrap text-xs text-muted-foreground gap-x-2 mt-1">
@@ -88,7 +92,10 @@ export function TaskCard({ task, draggable = true }: TaskCardProps) {
             </div>
           )}
           
-          <Progress value={task.progress} className="h-1 mt-2" />
+          <div className="flex items-center mt-2">
+            <Progress value={task.progress} className="h-1 flex-1" />
+            <span className="text-xs font-medium ml-2">{task.progress}%</span>
+          </div>
         </div>
       </div>
       

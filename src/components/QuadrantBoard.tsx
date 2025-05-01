@@ -54,7 +54,7 @@ function QuadrantColumn({ quadrant, tasks }: QuadrantProps) {
       </h2>
       <div 
         className={cn(
-          'quadrant flex-1 min-h-[200px] rounded-md p-2 bg-gray-50',
+          'quadrant flex-1 min-h-[400px] max-h-[600px] overflow-y-auto rounded-md p-2 bg-gray-50',
           { 'bg-blue-50 border-2 border-dashed border-blue-300': isDragOver }
         )}
         onDragOver={handleDragOver}
