@@ -47,13 +47,16 @@ function QuadrantColumn({ quadrant, tasks }: QuadrantProps) {
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <h2 className="font-medium mb-2 flex items-center">
-        <span className="mr-2">{quadrantEmojis[quadrant]}</span>
+    <div className="flex flex-col h-full bg-white p-4 rounded-lg border shadow-sm">
+      <h2 className="font-medium mb-3 flex items-center">
+        <span className="mr-2 text-xl">{quadrantEmojis[quadrant]}</span>
         {quadrantLabels[quadrant]}
       </h2>
       <div 
-        className={cn('quadrant flex-1', { 'quadrant-drop-active': isDragOver })}
+        className={cn(
+          'quadrant flex-1 min-h-[200px] rounded-md p-2 bg-gray-50',
+          { 'bg-blue-50 border-2 border-dashed border-blue-300': isDragOver }
+        )}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
@@ -85,13 +88,15 @@ export default function QuadrantBoard() {
   
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Eisenhower Matrix - 2x2 Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <QuadrantColumn quadrant={1} tasks={quadrant1Tasks} />
         <QuadrantColumn quadrant={2} tasks={quadrant2Tasks} />
         <QuadrantColumn quadrant={3} tasks={quadrant3Tasks} />
         <QuadrantColumn quadrant={4} tasks={quadrant4Tasks} />
       </div>
       
+      {/* Routine Tasks Section */}
       <div className="mt-6">
         <QuadrantColumn quadrant={5} tasks={routineTasks} />
       </div>

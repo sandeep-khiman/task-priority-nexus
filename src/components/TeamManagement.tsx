@@ -5,16 +5,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { UserRole, User } from '@/types/user';
+import { UserRole, User, Team, CreateTeamPayload } from '@/types/user';
 import { useToast } from '@/components/ui/use-toast';
 import { Label } from '@/components/ui/label';
 import { CheckCircle, XCircle } from 'lucide-react';
+import { CreateTeamDialog } from './CreateTeamDialog';
 
 export function TeamManagement() {
   const { toast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [teamLeads, setTeamLeads] = useState<User[]>([]);
   const [employees, setEmployees] = useState<User[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [teamAssignments, setTeamAssignments] = useState<Record<string, string[]>>({});
   const [isLoading, setIsLoading] = useState(true);
 
@@ -93,13 +95,48 @@ export function TeamManagement() {
       '3': ['5', '6'], // Team Lead One has Employee One and Two
       '4': ['7', '8']  // Team Lead Two has Employee Three and Four
     };
+
+    // Mock teams
+    const initialTeams: Team[] = [
+      {
+        id: '1',
+        name: 'Development Team',
+        leadId: '3',
+        memberIds: ['5', '6']
+      },
+      {
+        id: '2',
+        name: 'QA Team',
+        leadId: '4',
+        memberIds: ['7', '8']
+      }
+    ];
     
     setUsers(mockUsers);
     setTeamLeads(mockUsers.filter(user => user.role === 'team-lead'));
     setEmployees(mockUsers.filter(user => user.role === 'employee'));
+    setTeams(initialTeams);
     setTeamAssignments(initialTeamAssignments);
     setIsLoading(false);
   }, []);
+
+  // Function to create a new team
+  const handleCreateTeam = (teamData: CreateTeamPayload) => {
+    const newTeam: Team = {
+      id: `${teams.length + 1}`,
+      name: teamData.name,
+      leadId: teamData.leadId,
+      memberIds: teamData.memberIds
+    };
+    
+    setTeams(prev => [...prev, newTeam]);
+    
+    // Update team assignments
+    setTeamAssignments(prev => ({
+      ...prev,
+      [teamData.leadId]: teamData.memberIds
+    }));
+  };
 
   // Function to handle adding an employee to a team lead's team
   const handleAddToTeam = (teamLeadId: string, employeeId: string) => {
@@ -113,6 +150,17 @@ export function TeamManagement() {
       }
       return prev;
     });
+
+    // Also update the corresponding team if it exists
+    setTeams(prev => prev.map(team => {
+      if (team.leadId === teamLeadId) {
+        return {
+          ...team,
+          memberIds: [...team.memberIds, employeeId]
+        };
+      }
+      return team;
+    }));
 
     toast({
       title: 'Team Updated',
@@ -129,6 +177,17 @@ export function TeamManagement() {
         [teamLeadId]: teamLeadAssignments.filter(id => id !== employeeId)
       };
     });
+
+    // Also update the corresponding team if it exists
+    setTeams(prev => prev.map(team => {
+      if (team.leadId === teamLeadId) {
+        return {
+          ...team,
+          memberIds: team.memberIds.filter(id => id !== employeeId)
+        };
+      }
+      return team;
+    }));
 
     toast({
       title: 'Team Updated',
@@ -155,17 +214,65 @@ export function TeamManagement() {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Team Management</CardTitle>
-        <CardDescription>
-          Assign employees to team leads and manage team structures
-        </CardDescription>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle>Team Management</CardTitle>
+          <CardDescription>
+            Assign employees to team leads and manage team structures
+          </CardDescription>
+        </div>
+        <CreateTeamDialog 
+          users={users} 
+          teamLeads={teamLeads} 
+          onCreateTeam={handleCreateTeam} 
+        />
       </CardHeader>
       <CardContent>
         {isLoading ? (
           <div className="py-10 text-center">Loading team data...</div>
         ) : (
           <div className="space-y-6">
+            <div className="mb-4">
+              <h3 className="text-lg font-medium mb-2">Current Teams</h3>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Team Name</TableHead>
+                    <TableHead>Team Lead</TableHead>
+                    <TableHead>Members</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {teams.length > 0 ? (
+                    teams.map(team => (
+                      <TableRow key={team.id}>
+                        <TableCell className="font-medium">{team.name}</TableCell>
+                        <TableCell>{getTeamLeadName(team.leadId)}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {team.memberIds.map(memberId => (
+                              <Badge key={memberId} variant="secondary">
+                                {getEmployeeName(memberId)}
+                              </Badge>
+                            ))}
+                            {team.memberIds.length === 0 && (
+                              <span className="text-muted-foreground">No members</span>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center py-4">
+                        No teams created yet
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            
             {teamLeads.length > 0 ? (
               teamLeads.map(teamLead => (
                 <div key={teamLead.id} className="bg-gray-50 p-4 rounded-lg">

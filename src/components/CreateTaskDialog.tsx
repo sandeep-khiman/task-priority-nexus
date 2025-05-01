@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import { CalendarIcon, Plus } from 'lucide-react';
 import { Quadrant } from '@/types/task';
+import { User } from '@/types/user';
 
 const initialTaskState = {
   title: '',
@@ -41,7 +42,7 @@ export function CreateTaskDialog() {
   const visibleUsers = getVisibleUsers();
   
   const handleCreateTask = async () => {
-    if (!user || !taskData.title) return;
+    if (!user || !taskData.title || !taskData.assignedToId) return;
     
     // Find assigned user name
     const assignedUser = visibleUsers.find(u => u.id === taskData.assignedToId);
@@ -57,6 +58,14 @@ export function CreateTaskDialog() {
     setDate(undefined);
     setOpen(false);
   };
+
+  // Group users by teams for better organization in dropdown
+  const groupUsersByTeam = (users: User[]) => {
+    // For now, just return users as is (in a real app, we'd group by teams)
+    return users;
+  };
+
+  const organizedUsers = groupUsersByTeam(visibleUsers);
   
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -116,7 +125,7 @@ export function CreateTaskDialog() {
             </div>
             
             <div className="grid gap-2">
-              <Label>Quadrant</Label>
+              <Label>Priority Quadrant</Label>
               <Select 
                 value={taskData.quadrant.toString()} 
                 onValueChange={(value) => setTaskData({
@@ -172,16 +181,16 @@ export function CreateTaskDialog() {
             </div>
             
             <div className="grid gap-2">
-              <Label>Assigned To</Label>
+              <Label>Assign To</Label>
               <Select 
-                value={taskData.assignedToId || (user?.id || '')} 
+                value={taskData.assignedToId || ''} 
                 onValueChange={(value) => setTaskData({...taskData, assignedToId: value})}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select user" />
                 </SelectTrigger>
                 <SelectContent>
-                  {visibleUsers.map((user) => (
+                  {organizedUsers.map((user) => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.name}
                     </SelectItem>

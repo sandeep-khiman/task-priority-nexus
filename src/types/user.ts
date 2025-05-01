@@ -25,3 +25,9 @@ export interface Team {
   leadId: string;
   memberIds: string[];
 }
+
+export interface CreateTeamPayload {
+  name: string;
+  leadId: string;
+  memberIds: string[];
+}
