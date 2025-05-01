@@ -4,6 +4,13 @@ import { Task, Quadrant } from '@/types/task';
 import { TaskCard } from './TaskCard';
 import { useTaskContext } from '@/contexts/TaskContext';
 import { cn } from '@/lib/utils';
+import { 
+  AlertTriangle,
+  Target,
+  Clock,
+  HelpCircle,
+  RotateCcw
+} from 'lucide-react';
 
 const quadrantLabels: Record<Quadrant, string> = {
   1: 'Urgent & Important',
@@ -13,12 +20,12 @@ const quadrantLabels: Record<Quadrant, string> = {
   5: 'Routine Tasks'
 };
 
-const quadrantEmojis: Record<Quadrant, string> = {
-  1: '🔥',
-  2: '🎯',
-  3: '⏰',
-  4: '🤔',
-  5: '🔄'
+const quadrantIcons: Record<Quadrant, React.ReactNode> = {
+  1: <AlertTriangle className="w-5 h-5 text-red-500" />,
+  2: <Target className="w-5 h-5 text-blue-500" />,
+  3: <Clock className="w-5 h-5 text-amber-500" />,
+  4: <HelpCircle className="w-5 h-5 text-gray-500" />,
+  5: <RotateCcw className="w-5 h-5 text-green-500" />
 };
 
 interface QuadrantProps {
@@ -49,12 +56,12 @@ function QuadrantColumn({ quadrant, tasks }: QuadrantProps) {
   return (
     <div className="flex flex-col h-full bg-white p-4 rounded-lg border shadow-sm">
       <h2 className="font-medium mb-3 flex items-center">
-        <span className="mr-2 text-xl">{quadrantEmojis[quadrant]}</span>
+        <span className="mr-2">{quadrantIcons[quadrant]}</span>
         {quadrantLabels[quadrant]}
       </h2>
       <div 
         className={cn(
-          'quadrant flex-1 min-h-[400px] max-h-[600px] overflow-y-auto rounded-md p-2 bg-gray-50',
+          'quadrant flex-1 min-h-[400px] overflow-y-auto rounded-md p-2 bg-gray-50',
           { 'bg-blue-50 border-2 border-dashed border-blue-300': isDragOver }
         )}
         onDragOver={handleDragOver}

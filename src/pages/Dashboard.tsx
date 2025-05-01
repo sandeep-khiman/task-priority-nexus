@@ -36,7 +36,7 @@ export default function Dashboard() {
         description: message,
       });
     }
-  }, [user]);
+  }, [user, toast]);
 
   if (!isAuthenticated) {
     return <Navigate to="/login" />;

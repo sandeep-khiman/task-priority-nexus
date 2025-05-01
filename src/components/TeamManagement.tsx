@@ -8,17 +8,23 @@ import { Button } from '@/components/ui/button';
 import { UserRole, User, Team, CreateTeamPayload } from '@/types/user';
 import { useToast } from '@/components/ui/use-toast';
 import { Label } from '@/components/ui/label';
-import { CheckCircle, XCircle } from 'lucide-react';
+import { CheckCircle, XCircle, Users, UserCheck, UserPlus } from 'lucide-react';
 import { CreateTeamDialog } from './CreateTeamDialog';
 
-export function TeamManagement() {
+interface TeamManagementProps {
+  // Optional props can be added here
+}
+
+export function TeamManagement({ }: TeamManagementProps) {
   const { toast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
+  const [managers, setManagers] = useState<User[]>([]);
   const [teamLeads, setTeamLeads] = useState<User[]>([]);
   const [employees, setEmployees] = useState<User[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [teamAssignments, setTeamAssignments] = useState<Record<string, string[]>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedManager, setSelectedManager] = useState<string>('all');
 
   // Mock initial data load
   useEffect(() => {
@@ -34,8 +40,16 @@ export function TeamManagement() {
       },
       {
         id: '2',
-        email: 'manager@example.com',
-        name: 'Manager User',
+        email: 'manager1@example.com',
+        name: 'Manager One',
+        role: 'manager' as UserRole,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: '9',
+        email: 'manager2@example.com',
+        name: 'Manager Two',
         role: 'manager' as UserRole,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
@@ -46,7 +60,8 @@ export function TeamManagement() {
         name: 'Team Lead One',
         role: 'team-lead' as UserRole,
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
+        managerId: '2' // Assigned to Manager One
       },
       {
         id: '4',
@@ -54,7 +69,17 @@ export function TeamManagement() {
         name: 'Team Lead Two',
         role: 'team-lead' as UserRole,
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
+        managerId: '2' // Assigned to Manager One
+      },
+      {
+        id: '10',
+        email: 'teamlead3@example.com',
+        name: 'Team Lead Three',
+        role: 'team-lead' as UserRole,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        managerId: '9' // Assigned to Manager Two
       },
       {
         id: '5',
@@ -102,17 +127,27 @@ export function TeamManagement() {
         id: '1',
         name: 'Development Team',
         leadId: '3',
-        memberIds: ['5', '6']
+        memberIds: ['5', '6'],
+        managerId: '2' // Manager One
       },
       {
         id: '2',
         name: 'QA Team',
         leadId: '4',
-        memberIds: ['7', '8']
+        memberIds: ['7', '8'],
+        managerId: '2' // Manager One
+      },
+      {
+        id: '3',
+        name: 'DevOps Team',
+        leadId: '10',
+        memberIds: [],
+        managerId: '9' // Manager Two
       }
     ];
     
     setUsers(mockUsers);
+    setManagers(mockUsers.filter(user => user.role === 'manager'));
     setTeamLeads(mockUsers.filter(user => user.role === 'team-lead'));
     setEmployees(mockUsers.filter(user => user.role === 'employee'));
     setTeams(initialTeams);
@@ -120,13 +155,19 @@ export function TeamManagement() {
     setIsLoading(false);
   }, []);
 
+  // Get filtered team leads based on selected manager
+  const filteredTeamLeads = selectedManager === 'all' 
+    ? teamLeads 
+    : teamLeads.filter(tl => tl.managerId === selectedManager);
+
   // Function to create a new team
   const handleCreateTeam = (teamData: CreateTeamPayload) => {
     const newTeam: Team = {
       id: `${teams.length + 1}`,
       name: teamData.name,
       leadId: teamData.leadId,
-      memberIds: teamData.memberIds
+      memberIds: teamData.memberIds,
+      managerId: teamData.managerId
     };
     
     setTeams(prev => [...prev, newTeam]);
@@ -136,6 +177,13 @@ export function TeamManagement() {
       ...prev,
       [teamData.leadId]: teamData.memberIds
     }));
+
+    // Update team lead with manager ID
+    setTeamLeads(prev => prev.map(tl => 
+      tl.id === teamData.leadId 
+        ? { ...tl, managerId: teamData.managerId } 
+        : tl
+    ));
   };
 
   // Function to handle adding an employee to a team lead's team
@@ -206,6 +254,12 @@ export function TeamManagement() {
     return teamLead ? teamLead.name : 'Unknown';
   };
 
+  // Get the name of a manager by ID
+  const getManagerName = (managerId: string) => {
+    const manager = users.find(user => user.id === managerId);
+    return manager ? manager.name : 'Unknown';
+  };
+
   // Get the name of an employee by ID
   const getEmployeeName = (employeeId: string) => {
     const employee = users.find(user => user.id === employeeId);
@@ -221,11 +275,30 @@ export function TeamManagement() {
             Assign employees to team leads and manage team structures
           </CardDescription>
         </div>
-        <CreateTeamDialog 
-          users={users} 
-          teamLeads={teamLeads} 
-          onCreateTeam={handleCreateTeam} 
-        />
+        <div className="flex items-center gap-4">
+          <div className="min-w-[200px]">
+            <Select 
+              value={selectedManager}
+              onValueChange={setSelectedManager}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by Manager" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Managers</SelectItem>
+                {managers.map(manager => (
+                  <SelectItem key={manager.id} value={manager.id}>{manager.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <CreateTeamDialog 
+            users={users} 
+            teamLeads={teamLeads}
+            managers={managers}
+            onCreateTeam={handleCreateTeam} 
+          />
+        </div>
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -233,20 +306,27 @@ export function TeamManagement() {
         ) : (
           <div className="space-y-6">
             <div className="mb-4">
-              <h3 className="text-lg font-medium mb-2">Current Teams</h3>
+              <div className="flex items-center mb-3">
+                <Users className="mr-2 h-5 w-5" />
+                <h3 className="text-lg font-medium">Current Teams</h3>
+              </div>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Team Name</TableHead>
+                    <TableHead>Manager</TableHead>
                     <TableHead>Team Lead</TableHead>
                     <TableHead>Members</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {teams.length > 0 ? (
-                    teams.map(team => (
+                    teams
+                      .filter(team => selectedManager === 'all' || team.managerId === selectedManager)
+                      .map(team => (
                       <TableRow key={team.id}>
                         <TableCell className="font-medium">{team.name}</TableCell>
+                        <TableCell>{getManagerName(team.managerId || '')}</TableCell>
                         <TableCell>{getTeamLeadName(team.leadId)}</TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
@@ -264,7 +344,7 @@ export function TeamManagement() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={3} className="text-center py-4">
+                      <TableCell colSpan={4} className="text-center py-4">
                         No teams created yet
                       </TableCell>
                     </TableRow>
@@ -273,18 +353,27 @@ export function TeamManagement() {
               </Table>
             </div>
             
-            {teamLeads.length > 0 ? (
-              teamLeads.map(teamLead => (
+            {filteredTeamLeads.length > 0 ? (
+              filteredTeamLeads.map(teamLead => (
                 <div key={teamLead.id} className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-medium mb-2">
+                  <h3 className="text-lg font-medium mb-2 flex items-center">
+                    <UserCheck className="mr-2 h-5 w-5 text-blue-600" />
                     Team Lead: {teamLead.name} 
-                    <Badge className="ml-2 bg-green-500">
+                    <Badge className="ml-2 bg-blue-500 hover:bg-blue-600">
                       {(teamAssignments[teamLead.id]?.length || 0)} Team Members
                     </Badge>
+                    {teamLead.managerId && (
+                      <Badge className="ml-2 bg-purple-500 hover:bg-purple-600">
+                        Manager: {getManagerName(teamLead.managerId)}
+                      </Badge>
+                    )}
                   </h3>
                   
                   <div className="mt-4">
-                    <Label className="mb-2 block">Assign Employees to this Team Lead:</Label>
+                    <Label className="mb-2 block flex items-center">
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      Assign Employees to this Team Lead:
+                    </Label>
                     <div className="grid gap-2">
                       <Table>
                         <TableHeader>
@@ -343,7 +432,11 @@ export function TeamManagement() {
               ))
             ) : (
               <div className="py-10 text-center">
-                No team leads found. Please assign at least one user as a team lead first.
+                {selectedManager === 'all' ? (
+                  'No team leads found. Please assign at least one user as a team lead first.'
+                ) : (
+                  'No team leads found for the selected manager.'
+                )}
               </div>
             )}
           </div>

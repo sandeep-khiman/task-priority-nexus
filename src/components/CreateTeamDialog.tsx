@@ -1,35 +1,47 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Users } from 'lucide-react';
-import { User, Team, CreateTeamPayload } from '@/types/user';
+import { User, Team, CreateTeamPayload, UserRole } from '@/types/user';
 import { useToast } from '@/components/ui/use-toast';
 
 interface CreateTeamDialogProps {
   users: User[];
   teamLeads: User[];
+  managers: User[];
   onCreateTeam: (team: CreateTeamPayload) => void;
 }
 
-export function CreateTeamDialog({ users, teamLeads, onCreateTeam }: CreateTeamDialogProps) {
+export function CreateTeamDialog({ users, teamLeads, managers, onCreateTeam }: CreateTeamDialogProps) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [teamName, setTeamName] = useState('');
+  const [selectedManagerId, setSelectedManagerId] = useState<string>('');
   const [selectedLeadId, setSelectedLeadId] = useState<string>('');
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   
   // Filter employees only
   const employees = users.filter(user => user.role === 'employee');
 
+  useEffect(() => {
+    // Reset selections when dialog opens/closes
+    if (!open) {
+      setTeamName('');
+      setSelectedManagerId('');
+      setSelectedLeadId('');
+      setSelectedMemberIds([]);
+    }
+  }, [open]);
+
   const handleCreateTeam = () => {
-    if (!teamName || !selectedLeadId) {
+    if (!teamName || !selectedManagerId || !selectedLeadId) {
       toast({
         title: "Missing information",
-        description: "Please provide a team name and select a team lead",
+        description: "Please provide a team name, select a manager and a team lead",
         variant: "destructive"
       });
       return;
@@ -37,6 +49,7 @@ export function CreateTeamDialog({ users, teamLeads, onCreateTeam }: CreateTeamD
 
     const newTeam: CreateTeamPayload = {
       name: teamName,
+      managerId: selectedManagerId,
       leadId: selectedLeadId,
       memberIds: selectedMemberIds
     };
@@ -45,6 +58,7 @@ export function CreateTeamDialog({ users, teamLeads, onCreateTeam }: CreateTeamD
     
     // Reset form
     setTeamName('');
+    setSelectedManagerId('');
     setSelectedLeadId('');
     setSelectedMemberIds([]);
     setOpen(false);
@@ -84,6 +98,25 @@ export function CreateTeamDialog({ users, teamLeads, onCreateTeam }: CreateTeamD
               onChange={(e) => setTeamName(e.target.value)} 
               placeholder="Enter team name..."
             />
+          </div>
+          
+          <div className="grid gap-2">
+            <Label>Manager</Label>
+            <Select 
+              value={selectedManagerId} 
+              onValueChange={setSelectedManagerId}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select manager" />
+              </SelectTrigger>
+              <SelectContent>
+                {managers.map((manager) => (
+                  <SelectItem key={manager.id} value={manager.id}>
+                    {manager.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           
           <div className="grid gap-2">
@@ -136,7 +169,7 @@ export function CreateTeamDialog({ users, teamLeads, onCreateTeam }: CreateTeamD
           </Button>
           <Button 
             onClick={handleCreateTeam} 
-            disabled={!teamName || !selectedLeadId}
+            disabled={!teamName || !selectedManagerId || !selectedLeadId}
           >
             Create Team
           </Button>

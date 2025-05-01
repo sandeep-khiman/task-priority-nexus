@@ -10,6 +10,7 @@ export interface User {
   updatedAt: string;
   teamId?: string; // ID of the team the user belongs to (for employees)
   teamMembers?: string[]; // IDs of team members (for team leads)
+  managerId?: string; // ID of the manager this user reports to (for team leads)
 }
 
 export interface AuthState {
@@ -24,10 +25,12 @@ export interface Team {
   name: string;
   leadId: string;
   memberIds: string[];
+  managerId?: string; // Manager that owns this team
 }
 
 export interface CreateTeamPayload {
   name: string;
   leadId: string;
   memberIds: string[];
+  managerId: string; // Added manager ID to team creation payload
 }
