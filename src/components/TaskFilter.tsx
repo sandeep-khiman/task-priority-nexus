@@ -12,14 +12,14 @@ export function TaskFilter() {
     <div className="flex flex-col sm:flex-row sm:items-center gap-4">
       <div className="flex-1">
         <Select
-          value={selectedUserId || ''}
-          onValueChange={value => setSelectedUserId(value === '' ? null : value)}
+          value={selectedUserId || 'all'}
+          onValueChange={value => setSelectedUserId(value === 'all' ? null : value)}
         >
           <SelectTrigger className="w-full sm:w-[200px]">
             <SelectValue placeholder="Filter by team member" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All team members</SelectItem>
+            <SelectItem value="all">All team members</SelectItem>
             {visibleUsers.map(user => (
               <SelectItem key={user.id} value={user.id}>
                 {user.name}

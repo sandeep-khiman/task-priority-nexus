@@ -13,6 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { CalendarIcon, Plus } from 'lucide-react';
+import { Quadrant } from '@/types/task';
 
 const initialTaskState = {
   title: '',
@@ -25,7 +26,7 @@ const initialTaskState = {
   assignedToName: '',
   dueDate: null as string | null,
   completed: false,
-  quadrant: 1 as const
+  quadrant: 1 as Quadrant
 };
 
 const emojis = ['📋', '📝', '📊', '📈', '🔍', '⚙️', '🧩', '🔧', '📱', '💻', '🔔', '🎯', '⏰', '🔥'];
@@ -120,7 +121,7 @@ export function CreateTaskDialog() {
                 value={taskData.quadrant.toString()} 
                 onValueChange={(value) => setTaskData({
                   ...taskData, 
-                  quadrant: parseInt(value) as 1 | 2 | 3 | 4 | 5
+                  quadrant: parseInt(value) as Quadrant
                 })}
               >
                 <SelectTrigger>
@@ -173,7 +174,7 @@ export function CreateTaskDialog() {
             <div className="grid gap-2">
               <Label>Assigned To</Label>
               <Select 
-                value={taskData.assignedToId || user?.id || ''} 
+                value={taskData.assignedToId || (user?.id || '')} 
                 onValueChange={(value) => setTaskData({...taskData, assignedToId: value})}
               >
                 <SelectTrigger>
