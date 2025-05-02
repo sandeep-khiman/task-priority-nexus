@@ -7,6 +7,7 @@ import QuadrantBoard from '@/components/QuadrantBoard';
 import { TaskFilter } from '@/components/TaskFilter';
 import { CreateTaskDialog } from '@/components/CreateTaskDialog';
 import { useToast } from '@/components/ui/use-toast';
+import { ClipboardList } from 'lucide-react';
 
 export default function Dashboard() {
   const { isAuthenticated, user } = useAuth();
@@ -49,9 +50,12 @@ export default function Dashboard() {
         <div className="container py-6 space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold">Task Management</h1>
+              <h1 className="text-3xl font-bold flex items-center">
+                <ClipboardList className="mr-3 h-7 w-7" /> 
+                Task Dashboard
+              </h1>
               <p className="text-muted-foreground mt-1">
-                Organize your tasks using the Eisenhower Matrix
+                Organize your tasks using the Eisenhower Priority Matrix
               </p>
             </div>
             <div className="flex gap-2">

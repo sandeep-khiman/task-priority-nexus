@@ -11,6 +11,7 @@ import { TaskProvider } from "./contexts/TaskContext";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import AdminSettings from "./pages/AdminSettings";
+import ManagerDashboard from "./pages/ManagerDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ const App = () => (
               <Route path="/login" element={<Login />} />
               <Route path="/" element={<Dashboard />} />
               <Route path="/admin" element={<AdminSettings />} />
+              <Route path="/manager" element={<ManagerDashboard />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

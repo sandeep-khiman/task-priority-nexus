@@ -34,3 +34,12 @@ export interface CreateTeamPayload {
   memberIds: string[];
   managerId: string; // Added manager ID to team creation payload
 }
+
+// New interface for team editing
+export interface EditTeamPayload {
+  id: string;
+  name: string;
+  leadId: string;
+  memberIds: string[];
+  managerId: string;
+}

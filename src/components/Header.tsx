@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { CircleUserRound, Settings, ClipboardList, UsersRound } from 'lucide-react';
 
 export function Header() {
   const { user, logout } = useAuth();
@@ -32,9 +33,28 @@ export function Header() {
         </div>
 
         <nav className="flex items-center gap-4">
+          <Button variant="ghost" asChild>
+            <Link to="/" className="flex items-center">
+              <ClipboardList className="mr-2 h-5 w-5" />
+              Tasks
+            </Link>
+          </Button>
+
           {user?.role === 'admin' && (
             <Button variant="ghost" asChild>
-              <Link to="/admin">Admin Settings</Link>
+              <Link to="/admin" className="flex items-center">
+                <Settings className="mr-2 h-5 w-5" />
+                Admin Settings
+              </Link>
+            </Button>
+          )}
+
+          {user?.role === 'manager' && (
+            <Button variant="ghost" asChild>
+              <Link to="/manager" className="flex items-center">
+                <UsersRound className="mr-2 h-5 w-5" />
+                Team Management
+              </Link>
             </Button>
           )}
           
@@ -42,7 +62,7 @@ export function Header() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                 <Avatar className="h-8 w-8">
-                  <AvatarFallback>{user ? getInitials(user.name) : 'U'}</AvatarFallback>
+                  <AvatarFallback>{user ? getInitials(user.name) : <CircleUserRound className="h-5 w-5" />}</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
@@ -53,7 +73,7 @@ export function Header() {
                   <div className="text-xs text-muted-foreground">{user.role}</div>
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem onClick={handleLogout}>Log out</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleLogout}>Sign out</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </nav>

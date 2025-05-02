@@ -1,85 +1,65 @@
 
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Users } from 'lucide-react';
-import { User, Team, CreateTeamPayload, UserRole } from '@/types/user';
+import { User, Team } from '@/types/user';
 import { useToast } from '@/components/ui/use-toast';
-import { useAuth } from '@/contexts/AuthContext';
+import { Pencil } from 'lucide-react';
 
-interface CreateTeamDialogProps {
+interface EditTeamDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  team: Team;
   users: User[];
   teamLeads: User[];
-  managers: User[];
-  onCreateTeam: (team: CreateTeamPayload) => void;
+  employees: User[];
+  onSave: (team: Team) => void;
 }
 
-export function CreateTeamDialog({ users, teamLeads, managers, onCreateTeam }: CreateTeamDialogProps) {
+export function EditTeamDialog({ 
+  open, 
+  onOpenChange,
+  team,
+  users,
+  teamLeads,
+  employees,
+  onSave
+}: EditTeamDialogProps) {
   const { toast } = useToast();
-  const { user: currentUser } = useAuth();
-  const [open, setOpen] = useState(false);
   const [teamName, setTeamName] = useState('');
-  const [selectedManagerId, setSelectedManagerId] = useState<string>('');
   const [selectedLeadId, setSelectedLeadId] = useState<string>('');
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   
-  // Filter employees only
-  const employees = users.filter(user => user.role === 'employee');
-
-  // Set manager automatically if current user is a manager
+  // Initialize form with team data
   useEffect(() => {
-    if (currentUser?.role === 'manager' && !selectedManagerId) {
-      setSelectedManagerId(currentUser.id);
+    if (team) {
+      setTeamName(team.name);
+      setSelectedLeadId(team.leadId);
+      setSelectedMemberIds(team.memberIds || []);
     }
-  }, [currentUser, selectedManagerId]);
+  }, [team]);
 
-  // Reset selections when dialog opens/closes
-  useEffect(() => {
-    if (!open) {
-      setTeamName('');
-      if (currentUser?.role !== 'manager') {
-        setSelectedManagerId('');
-      }
-      setSelectedLeadId('');
-      setSelectedMemberIds([]);
-    }
-  }, [open, currentUser]);
-
-  const handleCreateTeam = () => {
-    if (!teamName || !selectedManagerId || !selectedLeadId) {
+  const handleSave = () => {
+    if (!teamName || !selectedLeadId) {
       toast({
         title: "Missing information",
-        description: "Please provide a team name, select a manager and a team lead",
+        description: "Please provide a team name and select a team lead",
         variant: "destructive"
       });
       return;
     }
 
-    const newTeam: CreateTeamPayload = {
+    const updatedTeam: Team = {
+      ...team,
       name: teamName,
-      managerId: selectedManagerId,
       leadId: selectedLeadId,
       memberIds: selectedMemberIds
     };
 
-    onCreateTeam(newTeam);
-    
-    // Reset form
-    setTeamName('');
-    if (currentUser?.role !== 'manager') {
-      setSelectedManagerId('');
-    }
-    setSelectedLeadId('');
-    setSelectedMemberIds([]);
-    setOpen(false);
-    
-    toast({
-      title: "Team created",
-      description: `Team "${teamName}" has been created successfully`
-    });
+    onSave(updatedTeam);
   };
   
   const handleMemberToggle = (userId: string) => {
@@ -91,17 +71,12 @@ export function CreateTeamDialog({ users, teamLeads, managers, onCreateTeam }: C
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="gap-1">
-          <Plus className="h-4 w-4" /> Create Team
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center">
-            <Users className="mr-2 h-5 w-5" />
-            Create New Team
+            <Pencil className="mr-2 h-5 w-5" />
+            Edit Team
           </DialogTitle>
         </DialogHeader>
         
@@ -115,27 +90,6 @@ export function CreateTeamDialog({ users, teamLeads, managers, onCreateTeam }: C
               placeholder="Enter team name..."
             />
           </div>
-          
-          {currentUser?.role !== 'manager' && (
-            <div className="grid gap-2">
-              <Label>Manager</Label>
-              <Select 
-                value={selectedManagerId} 
-                onValueChange={setSelectedManagerId}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select manager" />
-                </SelectTrigger>
-                <SelectContent>
-                  {managers.map((manager) => (
-                    <SelectItem key={manager.id} value={manager.id}>
-                      {manager.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
           
           <div className="grid gap-2">
             <Label>Team Lead</Label>
@@ -182,14 +136,14 @@ export function CreateTeamDialog({ users, teamLeads, managers, onCreateTeam }: C
         </div>
         
         <div className="flex justify-end space-x-2">
-          <Button variant="outline" onClick={() => setOpen(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button 
-            onClick={handleCreateTeam} 
-            disabled={!teamName || !selectedManagerId || !selectedLeadId}
+            onClick={handleSave} 
+            disabled={!teamName || !selectedLeadId}
           >
-            Create Team
+            Save Changes
           </Button>
         </div>
       </DialogContent>
