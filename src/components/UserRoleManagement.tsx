@@ -8,63 +8,53 @@ import { Button } from '@/components/ui/button';
 import { UserRole, User } from '@/types/user';
 import { useToast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { userService } from '@/services/userService';
+import { supabase } from '@/integrations/supabase/client';
 
 export function UserRoleManagement() {
-  const { updateUserRole } = useAuth();
+  const { updateUserRole, profile: currentUserProfile } = useAuth();
   const { toast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Mock users for demo
   useEffect(() => {
-    // In a real app, this would be an API call
-    const mockUsers = [
-      {
-        id: '1',
-        email: 'admin@example.com',
-        name: 'Admin User',
-        role: 'admin' as UserRole,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      {
-        id: '2',
-        email: 'manager@example.com',
-        name: 'Manager User',
-        role: 'manager' as UserRole,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      {
-        id: '3',
-        email: 'teamlead@example.com',
-        name: 'Team Lead',
-        role: 'team-lead' as UserRole,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      {
-        id: '4',
-        email: 'employee1@example.com',
-        name: 'Employee One',
-        role: 'employee' as UserRole,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      {
-        id: '5',
-        email: 'employee2@example.com',
-        name: 'Employee Two',
-        role: 'employee' as UserRole,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }
-    ];
-    
-    setUsers(mockUsers);
-    setIsLoading(false);
+    fetchUsers();
+
+    // Set up a subscription to profile changes
+    const channel = supabase
+      .channel('profiles-changes')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'profiles' 
+      }, () => {
+        // Refresh users when profiles change
+        fetchUsers();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
+  
+  const fetchUsers = async () => {
+    try {
+      setIsLoading(true);
+      const fetchedUsers = await userService.getUsers();
+      setUsers(fetchedUsers);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch users. Please try again later.',
+        variant: 'destructive'
+      });
+      console.error('Error fetching users:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   const handleRoleChange = async (userId: string, role: string) => {
     setUpdatingUserId(userId);
@@ -78,17 +68,13 @@ export function UserRoleManagement() {
           user.id === userId ? { ...user, role: role as UserRole } : user
         )
       );
-      
-      toast({
-        title: 'Role updated',
-        description: 'User role has been updated successfully.'
-      });
     } catch (error) {
       toast({
         title: 'Error',
         description: 'Failed to update user role.',
         variant: 'destructive'
       });
+      console.error('Error updating role:', error);
     } finally {
       setUpdatingUserId(null);
     }
@@ -108,6 +94,25 @@ export function UserRoleManagement() {
         return '';
     }
   };
+  
+  // Check if current user is admin
+  const isAdmin = currentUserProfile?.role === 'admin';
+  
+  if (!isAdmin) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Access Denied</CardTitle>
+          <CardDescription>
+            You do not have permission to manage user roles.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p>Only administrators can access this functionality.</p>
+        </CardContent>
+      </Card>
+    );
+  }
   
   return (
     <Card>
@@ -131,34 +136,47 @@ export function UserRoleManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell>{user.name}</TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>
-                    <Badge className={`${getRoleBadgeColor(user.role)}`}>
-                      {user.role.charAt(0).toUpperCase() + user.role.slice(1).replace('-', ' ')}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Select 
-                      defaultValue={user.role} 
-                      onValueChange={(value) => handleRoleChange(user.id, value)}
-                      disabled={updatingUserId === user.id}
-                    >
-                      <SelectTrigger className="w-40">
-                        <SelectValue placeholder="Select role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="manager">Manager</SelectItem>
-                        <SelectItem value="team-lead">Team Lead</SelectItem>
-                        <SelectItem value="employee">Employee</SelectItem>
-                      </SelectContent>
-                    </Select>
+              {users.length > 0 ? (
+                users.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell>{user.name}</TableCell>
+                    <TableCell>{user.email}</TableCell>
+                    <TableCell>
+                      <Badge className={`${getRoleBadgeColor(user.role)}`}>
+                        {user.role.charAt(0).toUpperCase() + user.role.slice(1).replace('-', ' ')}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Select 
+                        defaultValue={user.role} 
+                        onValueChange={(value) => handleRoleChange(user.id, value)}
+                        disabled={updatingUserId === user.id || user.id === currentUserProfile?.id}
+                      >
+                        <SelectTrigger className="w-40">
+                          <SelectValue placeholder="Select role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="manager">Manager</SelectItem>
+                          <SelectItem value="team-lead">Team Lead</SelectItem>
+                          <SelectItem value="employee">Employee</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {user.id === currentUserProfile?.id && (
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Cannot change your own role
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-6">
+                    No users found
                   </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         )}

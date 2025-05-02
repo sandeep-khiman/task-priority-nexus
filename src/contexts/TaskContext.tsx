@@ -1,166 +1,38 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Task, Quadrant } from '@/types/task';
-import { User, UserRole } from '@/types/user';
-import { useAuth } from './AuthContext';
-import { format, addDays, parseISO, isAfter, isBefore, differenceInDays } from 'date-fns';
+import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/contexts/AuthContext'; 
+import { taskService } from '@/services/taskService';
+import { userService } from '@/services/userService';
+import { User } from '@/types/user';
+
+interface TaskFilterState {
+  showCompleted: boolean;
+  searchQuery: string;
+  assigneeFilter: string;
+}
 
 interface TaskContextType {
   tasks: Task[];
   filteredTasks: Task[];
   isLoading: boolean;
   error: string | null;
-  hideCompleted: boolean;
-  selectedUserId: string | null;
-  createTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
-  updateTask: (task: Task) => Promise<void>;
+  filter: TaskFilterState;
+  setFilter: React.Dispatch<React.SetStateAction<TaskFilterState>>;
+  createTask: (task: any) => Promise<void>;
+  updateTask: (task: any) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
-  moveTask: (taskId: string, quadrant: Quadrant) => Promise<void>;
-  updateTaskProgress: (taskId: string, progress: number) => Promise<void>;
-  toggleTaskCompletion: (taskId: string) => Promise<void>;
-  setHideCompleted: (hide: boolean) => void;
-  setSelectedUserId: (userId: string | null) => void;
   getVisibleUsers: () => User[];
-  recalculateQuadrants: () => void;
 }
 
+const initialFilterState: TaskFilterState = {
+  showCompleted: false,
+  searchQuery: '',
+  assigneeFilter: 'all'
+};
+
 const TaskContext = createContext<TaskContextType | null>(null);
-
-// Mock users for demo
-const mockUsers: User[] = [
-  {
-    id: '1',
-    email: 'admin@example.com',
-    name: 'Admin User',
-    role: 'admin',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: '2',
-    email: 'manager@example.com',
-    name: 'Manager User',
-    role: 'manager',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: '3',
-    email: 'teamlead@example.com',
-    name: 'Team Lead',
-    role: 'team-lead',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: '4',
-    email: 'employee@example.com',
-    name: 'Employee',
-    role: 'employee',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  }
-];
-
-// Mock initial tasks
-const mockTasks: Task[] = [
-  {
-    id: '1',
-    title: 'Quarterly Review Meeting',
-    notes: 'Prepare slides and financial summary',
-    icon: '📊',
-    progress: 75,
-    createdById: '1',
-    createdByName: 'Admin User',
-    assignedToId: '2',
-    assignedToName: 'Manager User',
-    dueDate: addDays(new Date(), 1).toISOString(),
-    completed: false,
-    quadrant: 1,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: '2',
-    title: 'Update Technical Documentation',
-    notes: 'Review and update API documentation',
-    icon: '📝',
-    progress: 30,
-    createdById: '2',
-    createdByName: 'Manager User',
-    assignedToId: '3',
-    assignedToName: 'Team Lead',
-    dueDate: addDays(new Date(), 5).toISOString(),
-    completed: false,
-    quadrant: 2,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: '3',
-    title: 'Review Pull Requests',
-    notes: 'At least 3 PRs need to be reviewed today',
-    icon: '👨‍💻',
-    progress: 0,
-    createdById: '3',
-    createdByName: 'Team Lead',
-    assignedToId: '4',
-    assignedToName: 'Employee',
-    dueDate: new Date().toISOString(),
-    completed: false,
-    quadrant: 1,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: '4',
-    title: 'Weekly Team Meeting',
-    notes: 'Discuss project status and blockers',
-    icon: '👥',
-    progress: 0,
-    createdById: '2',
-    createdByName: 'Manager User',
-    assignedToId: '2',
-    assignedToName: 'Manager User',
-    dueDate: addDays(new Date(), -2).toISOString(),
-    completed: false,
-    quadrant: 1,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: '5',
-    title: 'Research New Technologies',
-    notes: 'Look into GraphQL and serverless options',
-    icon: '🔍',
-    progress: 50,
-    createdById: '3',
-    createdByName: 'Team Lead',
-    assignedToId: '4',
-    assignedToName: 'Employee',
-    dueDate: addDays(new Date(), 8).toISOString(),
-    completed: false,
-    quadrant: 3,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: '6',
-    title: 'Fill Timesheet',
-    notes: 'Complete weekly timesheet',
-    icon: '⏰',
-    progress: 0,
-    createdById: '4',
-    createdByName: 'Employee',
-    assignedToId: '4',
-    assignedToName: 'Employee',
-    dueDate: null,
-    completed: false,
-    quadrant: 5,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  }
-];
 
 export const useTaskContext = (): TaskContextType => {
   const context = useContext(TaskContext);
@@ -171,273 +43,208 @@ export const useTaskContext = (): TaskContextType => {
 };
 
 export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
-  const [tasks, setTasks] = useState<Task[]>(mockTasks);
-  const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [hideCompleted, setHideCompleted] = useState(false);
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<TaskFilterState>(initialFilterState);
+  const { toast } = useToast();
+  const { user, profile, isAuthenticated } = useAuth();
 
-  // Helper function to determine if a user should have access to another user's tasks
-  const canAccessUserTasks = (currentUserRole: UserRole, targetUserId: string): boolean => {
-    if (!user) return false;
-
-    // Admin can access all tasks
-    if (currentUserRole === 'admin') return true;
-    
-    // Users can always access their own tasks
-    if (user.id === targetUserId) return true;
-    
-    // Manager can access team lead and employee tasks
-    if (currentUserRole === 'manager') {
-      const targetUser = mockUsers.find(u => u.id === targetUserId);
-      return targetUser?.role === 'team-lead' || targetUser?.role === 'employee';
-    }
-    
-    // Team lead can access employee tasks
-    if (currentUserRole === 'team-lead') {
-      const targetUser = mockUsers.find(u => u.id === targetUserId);
-      return targetUser?.role === 'employee';
-    }
-    
-    // Employee can only access their own tasks (already handled above)
-    return false;
-  };
-
-  // Get list of users that the current user can see tasks for
-  const getVisibleUsers = (): User[] => {
-    if (!user) return [];
-
-    switch (user.role) {
-      case 'admin':
-        return mockUsers;
-      case 'manager':
-        return mockUsers.filter(u => 
-          u.id === user.id || 
-          u.role === 'team-lead' || 
-          u.role === 'employee'
-        );
-      case 'team-lead':
-        return mockUsers.filter(u => 
-          u.id === user.id || 
-          u.role === 'employee'
-        );
-      case 'employee':
-        return mockUsers.filter(u => u.id === user.id);
-      default:
-        return [];
-    }
-  };
-
-  // Filter tasks based on user role and other filters
+  // Load tasks when the user is authenticated
   useEffect(() => {
-    if (!user) {
-      setFilteredTasks([]);
-      return;
+    if (isAuthenticated && user) {
+      fetchTasks();
+      fetchUsers();
+    } else {
+      setTasks([]);
+      setIsLoading(false);
     }
+  }, [isAuthenticated, user]);
 
-    let filtered = [...tasks];
-
-    // Filter by user access permissions
-    filtered = filtered.filter(task => {
-      return canAccessUserTasks(user.role, task.assignedToId);
-    });
-
-    // Filter by selected user if any
-    if (selectedUserId) {
-      filtered = filtered.filter(task => task.assignedToId === selectedUserId);
-    }
-
-    // Filter out completed tasks if hideCompleted is true
-    if (hideCompleted) {
-      filtered = filtered.filter(task => !task.completed);
-    }
-
-    setFilteredTasks(filtered);
-  }, [tasks, user, hideCompleted, selectedUserId]);
-
-  // Function to recalculate quadrants based on due dates
-  const recalculateQuadrants = () => {
-    const today = new Date();
+  // Fetch tasks from Supabase
+  const fetchTasks = async () => {
+    if (!user) return;
     
-    setTasks(prevTasks => {
-      return prevTasks.map(task => {
-        // Skip routine tasks (quadrant 5) and tasks without due dates
-        if (task.quadrant === 5 || !task.dueDate) {
-          return task;
-        }
-
-        const dueDate = parseISO(task.dueDate);
-        
-        // Move tasks due today to Quadrant 1 (Urgent & Important)
-        if (format(dueDate, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd')) {
-          return { ...task, quadrant: 1 };
-        }
-        
-        return task;
+    setIsLoading(true);
+    try {
+      const fetchedTasks = await taskService.getTasks();
+      setTasks(fetchedTasks);
+      setError(null);
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch tasks');
+      toast({
+        title: 'Error',
+        description: 'Failed to load tasks',
+        variant: 'destructive'
       });
-    });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // Run quadrant recalculation once a day or when tasks change
-  useEffect(() => {
-    recalculateQuadrants();
-    
-    // Set up a daily check
-    const intervalId = setInterval(() => {
-      recalculateQuadrants();
-    }, 86400000); // 24 hours
-    
-    return () => clearInterval(intervalId);
-  }, [tasks]);
-
-  // CRUD Operations
-  const createTask = async (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => {
-    setIsLoading(true);
+  // Fetch users based on the current user's role
+  const fetchUsers = async () => {
+    if (!user || !profile) return;
     
     try {
-      // In a real app, this would be an API call
-      const newTask: Task = {
-        ...taskData,
-        id: `${tasks.length + 1}`,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
+      let fetchedUsers: User[] = [];
       
-      setTasks(prevTasks => [...prevTasks, newTask]);
-      setError(null);
-    } catch (error) {
-      setError('Failed to create task');
-      console.error(error);
-    } finally {
-      setIsLoading(false);
+      switch (profile.role) {
+        case 'admin':
+          fetchedUsers = await userService.getUsers();
+          break;
+        case 'manager':
+          // For managers, get all users from their teams
+          // This would need a more sophisticated query in a real app
+          fetchedUsers = await userService.getUsers();
+          break;
+        case 'team-lead':
+          // Get team members for this team lead
+          const teamMembers = await userService.getTeamMembersByLeadId(user.id);
+          // Also add the team lead themselves
+          const leadUser = await userService.getUserById(user.id);
+          if (leadUser) {
+            fetchedUsers = [leadUser, ...teamMembers];
+          } else {
+            fetchedUsers = teamMembers;
+          }
+          break;
+        case 'employee':
+          // Employees can only see themselves
+          const employeeUser = await userService.getUserById(user.id);
+          if (employeeUser) {
+            fetchedUsers = [employeeUser];
+          }
+          break;
+      }
+      
+      setUsers(fetchedUsers);
+    } catch (err: any) {
+      console.error('Error fetching users:', err);
     }
   };
 
-  const updateTask = async (updatedTask: Task) => {
-    setIsLoading(true);
+  // Create a new task
+  const createTask = async (taskData: any) => {
+    if (!user) return;
     
+    setIsLoading(true);
     try {
-      // In a real app, this would be an API call
-      setTasks(prevTasks => 
-        prevTasks.map(task => 
-          task.id === updatedTask.id 
-            ? { ...updatedTask, updatedAt: new Date().toISOString() } 
-            : task
-        )
-      );
-      setError(null);
-    } catch (error) {
-      setError('Failed to update task');
-      console.error(error);
+      const newTask = await taskService.createTask({
+        ...taskData,
+        createdById: user.id,
+      });
+      
+      setTasks(prevTasks => [newTask, ...prevTasks]);
+      toast({
+        title: 'Task Created',
+        description: 'Your task has been created successfully'
+      });
+    } catch (err: any) {
+      setError(err.message || 'Failed to create task');
+      toast({
+        title: 'Error',
+        description: 'Failed to create task',
+        variant: 'destructive'
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Update an existing task
+  const updateTask = async (taskData: any) => {
+    setIsLoading(true);
+    try {
+      const updatedTask = await taskService.updateTask(taskData);
+      
+      if (updatedTask) {
+        setTasks(prevTasks => 
+          prevTasks.map(task => 
+            task.id === updatedTask.id ? updatedTask : task
+          )
+        );
+        
+        toast({
+          title: 'Task Updated',
+          description: 'Your task has been updated successfully'
+        });
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to update task');
+      toast({
+        title: 'Error',
+        description: 'Failed to update task',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Delete a task
   const deleteTask = async (taskId: string) => {
     setIsLoading(true);
-    
     try {
-      // In a real app, this would be an API call
-      setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
-      setError(null);
-    } catch (error) {
-      setError('Failed to delete task');
-      console.error(error);
+      await taskService.deleteTask(taskId);
+      
+      setTasks(prevTasks => 
+        prevTasks.filter(task => task.id !== taskId)
+      );
+      
+      toast({
+        title: 'Task Deleted',
+        description: 'Your task has been deleted successfully'
+      });
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete task');
+      toast({
+        title: 'Error',
+        description: 'Failed to delete task',
+        variant: 'destructive'
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const moveTask = async (taskId: string, quadrant: Quadrant) => {
-    setIsLoading(true);
-    
-    try {
-      setTasks(prevTasks => 
-        prevTasks.map(task => 
-          task.id === taskId 
-            ? { ...task, quadrant, updatedAt: new Date().toISOString() } 
-            : task
-        )
-      );
-      setError(null);
-    } catch (error) {
-      setError('Failed to move task');
-      console.error(error);
-    } finally {
-      setIsLoading(false);
-    }
+  // Return visible users based on permissions
+  const getVisibleUsers = (): User[] => {
+    return users;
   };
 
-  const updateTaskProgress = async (taskId: string, progress: number) => {
-    setIsLoading(true);
-    
-    try {
-      setTasks(prevTasks => 
-        prevTasks.map(task => 
-          task.id === taskId 
-            ? { 
-                ...task, 
-                progress,
-                completed: progress === 100,
-                updatedAt: new Date().toISOString() 
-              } 
-            : task
-        )
-      );
-      setError(null);
-    } catch (error) {
-      setError('Failed to update task progress');
-      console.error(error);
-    } finally {
-      setIsLoading(false);
+  // Apply filters to tasks
+  const filteredTasks = tasks.filter(task => {
+    // Filter by completion status
+    if (!filter.showCompleted && task.completed) {
+      return false;
     }
-  };
 
-  const toggleTaskCompletion = async (taskId: string) => {
-    setIsLoading(true);
-    
-    try {
-      setTasks(prevTasks => 
-        prevTasks.map(task => 
-          task.id === taskId 
-            ? { 
-                ...task, 
-                completed: !task.completed,
-                progress: task.completed ? task.progress : 100,
-                updatedAt: new Date().toISOString() 
-              } 
-            : task
-        )
-      );
-      setError(null);
-    } catch (error) {
-      setError('Failed to toggle task completion');
-      console.error(error);
-    } finally {
-      setIsLoading(false);
+    // Filter by assignee
+    if (filter.assigneeFilter !== 'all' && task.assignedToId !== filter.assigneeFilter) {
+      return false;
     }
-  };
+
+    // Filter by search query
+    if (filter.searchQuery && !task.title.toLowerCase().includes(filter.searchQuery.toLowerCase())) {
+      return false;
+    }
+
+    return true;
+  });
 
   const value: TaskContextType = {
     tasks,
     filteredTasks,
     isLoading,
     error,
-    hideCompleted,
-    selectedUserId,
+    filter,
+    setFilter,
     createTask,
     updateTask,
     deleteTask,
-    moveTask,
-    updateTaskProgress,
-    toggleTaskCompletion,
-    setHideCompleted,
-    setSelectedUserId,
-    getVisibleUsers,
-    recalculateQuadrants
+    getVisibleUsers
   };
 
   return <TaskContext.Provider value={value}>{children}</TaskContext.Provider>;

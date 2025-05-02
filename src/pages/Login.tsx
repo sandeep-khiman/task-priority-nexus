@@ -7,13 +7,16 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
+import { UserRole } from '@/types/user';
 
 export default function Login() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [role, setRole] = useState<UserRole>('employee');
   const { login, register, isAuthenticated, isLoading, error } = useAuth();
   const { toast } = useToast();
 
@@ -24,17 +27,15 @@ export default function Login() {
       if (isLogin) {
         await login(email, password);
       } else {
-        await register(email, password, name);
+        await register(email, password, name, role);
       }
-      
-      if (!error) {
-        toast({
-          title: isLogin ? 'Logged in successfully' : 'Account created successfully',
-          description: isLogin ? 'Welcome back!' : 'Welcome to Task Priority Nexus!',
-        });
-      }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Authentication error:', error);
+      toast({
+        title: 'Authentication Error',
+        description: error.message || 'An unexpected error occurred',
+        variant: 'destructive'
+      });
     }
   };
 
@@ -95,6 +96,27 @@ export default function Login() {
                   required 
                 />
               </div>
+              
+              {!isLogin && (
+                <div className="grid gap-2">
+                  <Label htmlFor="role">Role</Label>
+                  <Select 
+                    value={role} 
+                    onValueChange={(value) => setRole(value as UserRole)}
+                  >
+                    <SelectTrigger id="role">
+                      <SelectValue placeholder="Select your role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="manager">Manager</SelectItem>
+                      <SelectItem value="team-lead">Team Lead</SelectItem>
+                      <SelectItem value="employee">Employee</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading 
                   ? 'Loading...' 
@@ -114,15 +136,11 @@ export default function Login() {
             </Button>
           </CardFooter>
         </Card>
-        {/* Demo login info */}
+        {/* Demo login info - This would be removed in a production environment */}
         <div className="mt-4 p-4 bg-muted rounded-lg text-sm">
-          <h3 className="font-medium mb-2">Demo Accounts:</h3>
-          <ul className="space-y-1">
-            <li>Admin: admin@example.com / password</li>
-            <li>Manager: manager@example.com / password</li>
-            <li>Team Lead: teamlead@example.com / password</li>
-            <li>Employee: employee@example.com / password</li>
-          </ul>
+          <h3 className="font-medium mb-2">Demo Instructions:</h3>
+          <p className="mb-2">You can register new accounts with different roles to test the functionality.</p>
+          <p>First user to register as admin will have full access to the system.</p>
         </div>
       </div>
     </div>

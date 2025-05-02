@@ -1,56 +1,46 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, UserRole, AuthState } from '@/types/user';
+import { useNavigate } from 'react-router-dom';
+import { Session, User } from '@supabase/supabase-js';
+import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { UserRole } from '@/types/user';
+
+interface ProfileData {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  created_at: string;
+  updated_at: string;
+  team_id?: string;
+}
+
+interface AuthState {
+  isAuthenticated: boolean;
+  user: User | null;
+  session: Session | null;
+  profile: ProfileData | null;
+  isLoading: boolean;
+  error: string | null;
+}
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
-  logout: () => void;
+  register: (email: string, password: string, name: string, role: UserRole) => Promise<void>;
+  logout: () => Promise<void>;
   updateUserRole: (userId: string, role: UserRole) => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const initialState: AuthState = {
   isAuthenticated: false,
   user: null,
+  session: null,
+  profile: null,
   isLoading: true,
   error: null
 };
-
-// Mock users for demo purposes
-const mockUsers: User[] = [
-  {
-    id: '1',
-    email: 'admin@example.com',
-    name: 'Admin User',
-    role: 'admin',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: '2',
-    email: 'manager@example.com',
-    name: 'Manager User',
-    role: 'manager',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: '3',
-    email: 'teamlead@example.com',
-    name: 'Team Lead',
-    role: 'team-lead',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: '4',
-    email: 'employee@example.com',
-    name: 'Employee',
-    role: 'employee',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  }
-];
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -64,151 +54,247 @@ export const useAuth = (): AuthContextType => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [authState, setAuthState] = useState<AuthState>(initialState);
+  const { toast } = useToast();
+  const navigate = useNavigate();
 
+  // Fetch profile data for a user
+  const fetchProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching profile:', error);
+        return null;
+      }
+
+      return data as ProfileData;
+    } catch (error) {
+      console.error('Exception fetching profile:', error);
+      return null;
+    }
+  };
+
+  // Set up auth state listener and check for existing session
   useEffect(() => {
-    // Check for stored user on mount
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      try {
-        const user = JSON.parse(storedUser);
+    // Always set up the auth listener first
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setAuthState(prev => ({
+          ...prev,
+          isLoading: true,
+        }));
+
+        // Use setTimeout to prevent potential deadlocks
+        setTimeout(async () => {
+          if (session?.user) {
+            const profile = await fetchProfile(session.user.id);
+            
+            setAuthState({
+              isAuthenticated: true,
+              user: session.user,
+              session,
+              profile,
+              isLoading: false,
+              error: null
+            });
+          } else {
+            setAuthState({
+              isAuthenticated: false,
+              user: null,
+              session: null,
+              profile: null,
+              isLoading: false,
+              error: null
+            });
+          }
+        }, 0);
+      }
+    );
+
+    // Then check for existing session
+    const initializeAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        const profile = await fetchProfile(session.user.id);
+        
         setAuthState({
           isAuthenticated: true,
-          user,
+          user: session.user,
+          session,
+          profile,
           isLoading: false,
           error: null
         });
-      } catch (error) {
-        console.error('Failed to parse stored user', error);
-        localStorage.removeItem('user');
+      } else {
         setAuthState({
           ...initialState,
           isLoading: false
         });
       }
-    } else {
-      setAuthState({
-        ...initialState,
-        isLoading: false
-      });
-    }
+    };
+
+    initializeAuth();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
+  const refreshProfile = async () => {
+    if (!authState.user) return;
+    
+    try {
+      const profile = await fetchProfile(authState.user.id);
+      if (profile) {
+        setAuthState(prev => ({
+          ...prev,
+          profile
+        }));
+      }
+    } catch (error) {
+      console.error('Error refreshing profile:', error);
+    }
+  };
+
   const login = async (email: string, password: string) => {
-    // Simulate API call
-    setAuthState({
-      ...authState,
-      isLoading: true,
-      error: null
-    });
-
-    // For demo, we'll use mock users
-    const user = mockUsers.find(u => u.email === email);
+    setAuthState({ ...authState, isLoading: true, error: null });
     
-    if (user && password === 'password') {
-      // Simulate successful login
-      localStorage.setItem('user', JSON.stringify(user));
-      setAuthState({
-        isAuthenticated: true,
-        user,
-        isLoading: false,
-        error: null
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      
+      if (error) {
+        setAuthState({ ...authState, isLoading: false, error: error.message });
+        toast({
+          title: 'Login failed',
+          description: error.message,
+          variant: 'destructive'
+        });
+      } else {
+        // Auth state will be updated by the listener
+        toast({
+          title: 'Logged in successfully',
+          description: 'Welcome back!'
+        });
+        navigate('/');
+      }
+    } catch (error: any) {
+      setAuthState({ 
+        ...authState, 
+        isLoading: false, 
+        error: error.message || 'An unexpected error occurred'
       });
-    } else {
-      // Simulate login failure
-      setAuthState({
-        ...authState,
-        isLoading: false,
-        error: 'Invalid email or password'
+      toast({
+        title: 'Login failed',
+        description: error.message || 'An unexpected error occurred',
+        variant: 'destructive'
       });
     }
   };
 
-  const register = async (email: string, password: string, name: string) => {
-    // Simulate API call
-    setAuthState({
-      ...authState,
-      isLoading: true,
-      error: null
-    });
-
-    // Check if user already exists
-    const userExists = mockUsers.some(u => u.email === email);
+  const register = async (email: string, password: string, name: string, role: UserRole) => {
+    setAuthState({ ...authState, isLoading: true, error: null });
     
-    if (!userExists) {
-      // In a real app, would save to backend
-      const newUser: User = {
-        id: `${mockUsers.length + 1}`,
-        email,
-        name,
-        role: 'employee', // Default role
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      
-      mockUsers.push(newUser);
-      localStorage.setItem('user', JSON.stringify(newUser));
-      
-      setAuthState({
-        isAuthenticated: true,
-        user: newUser,
-        isLoading: false,
-        error: null
+    try {
+      // Register with additional user metadata
+      const { data, error } = await supabase.auth.signUp({ 
+        email, 
+        password,
+        options: {
+          data: {
+            name,
+            role
+          }
+        }
       });
-    } else {
-      setAuthState({
-        ...authState,
-        isLoading: false,
-        error: 'Email already in use'
+      
+      if (error) {
+        setAuthState({ ...authState, isLoading: false, error: error.message });
+        toast({
+          title: 'Registration failed',
+          description: error.message,
+          variant: 'destructive'
+        });
+      } else {
+        toast({
+          title: 'Registration successful',
+          description: 'Welcome to Task Priority Nexus!'
+        });
+        navigate('/');
+      }
+    } catch (error: any) {
+      setAuthState({ 
+        ...authState, 
+        isLoading: false, 
+        error: error.message || 'An unexpected error occurred'
+      });
+      toast({
+        title: 'Registration failed',
+        description: error.message || 'An unexpected error occurred',
+        variant: 'destructive'
       });
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('user');
-    setAuthState({
-      isAuthenticated: false,
-      user: null,
-      isLoading: false,
-      error: null
-    });
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+      navigate('/login');
+      toast({ 
+        title: 'Logged out',
+        description: 'You have been successfully logged out.'
+      });
+      // Auth state will be updated by the listener
+    } catch (error: any) {
+      toast({
+        title: 'Logout failed',
+        description: error.message || 'An unexpected error occurred',
+        variant: 'destructive'
+      });
+    }
   };
 
   const updateUserRole = async (userId: string, role: UserRole) => {
-    // Simulate API call
-    setAuthState({
-      ...authState,
-      isLoading: true
-    });
-
-    const userIndex = mockUsers.findIndex(u => u.id === userId);
+    setAuthState({ ...authState, isLoading: true });
     
-    if (userIndex !== -1) {
-      mockUsers[userIndex] = {
-        ...mockUsers[userIndex],
-        role,
-        updatedAt: new Date().toISOString()
-      };
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ role, updated_at: new Date().toISOString() })
+        .eq('id', userId);
       
-      // If this is the current user, update their stored data
-      if (authState.user && authState.user.id === userId) {
-        const updatedUser = mockUsers[userIndex];
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-        setAuthState({
-          ...authState,
-          user: updatedUser,
-          isLoading: false
+      if (error) {
+        toast({
+          title: 'Error',
+          description: 'Failed to update user role: ' + error.message,
+          variant: 'destructive'
         });
       } else {
-        setAuthState({
-          ...authState,
-          isLoading: false
+        // If this is the current user, update their profile
+        if (authState.user && authState.user.id === userId) {
+          await refreshProfile();
+        }
+        
+        setAuthState(prev => ({ ...prev, isLoading: false }));
+        toast({
+          title: 'Success',
+          description: 'User role updated successfully.'
         });
       }
-    } else {
-      setAuthState({
-        ...authState,
+    } catch (error: any) {
+      setAuthState(prev => ({
+        ...prev,
         isLoading: false,
-        error: 'User not found'
+        error: error.message
+      }));
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update user role',
+        variant: 'destructive'
       });
     }
   };
@@ -218,7 +304,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     login,
     register,
     logout,
-    updateUserRole
+    updateUserRole,
+    refreshProfile
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

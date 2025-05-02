@@ -9,13 +9,196 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          name: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id: string
+          name: string
+          role: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          assigned_to_id: string | null
+          completed: boolean
+          created_at: string
+          created_by_id: string | null
+          due_date: string | null
+          icon: string | null
+          id: string
+          notes: string | null
+          progress: number
+          quadrant: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to_id?: string | null
+          completed?: boolean
+          created_at?: string
+          created_by_id?: string | null
+          due_date?: string | null
+          icon?: string | null
+          id?: string
+          notes?: string | null
+          progress?: number
+          quadrant: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to_id?: string | null
+          completed?: boolean
+          created_at?: string
+          created_by_id?: string | null
+          due_date?: string | null
+          icon?: string | null
+          id?: string
+          notes?: string | null
+          progress?: number
+          quadrant?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_assigned_to_id_fkey"
+            columns: ["assigned_to_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_created_by_id_fkey"
+            columns: ["created_by_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_members: {
+        Row: {
+          created_at: string
+          id: string
+          is_lead: boolean
+          team_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_lead?: boolean
+          team_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_lead?: boolean
+          team_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teams: {
+        Row: {
+          created_at: string
+          id: string
+          manager_id: string | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          manager_id?: string | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          manager_id?: string | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teams_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_accessible_team_ids: {
+        Args: { user_id: string }
+        Returns: string[]
+      }
+      get_accessible_user_ids: {
+        Args: { lookup_user_id: string }
+        Returns: string[]
+      }
+      get_user_role: {
+        Args: { user_id: string }
+        Returns: string
+      }
+      is_team_lead: {
+        Args: { team_id: string; user_id: string }
+        Returns: boolean
+      }
+      is_team_manager: {
+        Args: { team_id: string; user_id: string }
+        Returns: boolean
+      }
+      is_team_member: {
+        Args: { team_id: string; user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { useTaskContext } from '@/contexts/TaskContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { CalendarIcon, Plus } from 'lucide-react';
 import { Quadrant } from '@/types/task';
 import { User } from '@/types/user';
+import { userService } from '@/services/userService';
 
 const initialTaskState = {
   title: '',
@@ -33,40 +34,58 @@ const initialTaskState = {
 const emojis = ['📋', '📝', '📊', '📈', '🔍', '⚙️', '🧩', '🔧', '📱', '💻', '🔔', '🎯', '⏰', '🔥'];
 
 export function CreateTaskDialog() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { createTask, getVisibleUsers } = useTaskContext();
   const [open, setOpen] = useState(false);
   const [taskData, setTaskData] = useState(initialTaskState);
   const [date, setDate] = useState<Date | undefined>(undefined);
+  const [assignableUsers, setAssignableUsers] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   
-  const visibleUsers = getVisibleUsers();
+  // Fetch users that can be assigned tasks
+  useEffect(() => {
+    if (open && user) {
+      const users = getVisibleUsers();
+      setAssignableUsers(users);
+      
+      // Default to assigning to self if no assignee is selected
+      if (!taskData.assignedToId && profile) {
+        setTaskData(prev => ({
+          ...prev,
+          assignedToId: profile.id,
+          assignedToName: profile.name
+        }));
+      }
+    }
+  }, [open, user, profile]);
   
   const handleCreateTask = async () => {
     if (!user || !taskData.title || !taskData.assignedToId) return;
     
-    // Find assigned user name
-    const assignedUser = visibleUsers.find(u => u.id === taskData.assignedToId);
+    setIsLoading(true);
     
-    await createTask({
-      ...taskData,
-      createdById: user.id,
-      createdByName: user.name,
-      assignedToName: assignedUser?.name || user.name
-    });
-    
-    setTaskData(initialTaskState);
-    setDate(undefined);
-    setOpen(false);
+    try {
+      // Find assigned user name
+      const assignedUser = assignableUsers.find(u => u.id === taskData.assignedToId);
+      
+      await createTask({
+        ...taskData,
+        createdById: user.id,
+        createdByName: user?.profile?.name || '',
+        assignedToName: assignedUser?.name || ''
+      });
+      
+      // Reset form
+      setTaskData(initialTaskState);
+      setDate(undefined);
+      setOpen(false);
+    } catch (error) {
+      console.error('Error creating task:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // Group users by teams for better organization in dropdown
-  const groupUsersByTeam = (users: User[]) => {
-    // For now, just return users as is (in a real app, we'd group by teams)
-    return users;
-  };
-
-  const organizedUsers = groupUsersByTeam(visibleUsers);
-  
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -190,9 +209,9 @@ export function CreateTaskDialog() {
                   <SelectValue placeholder="Select user" />
                 </SelectTrigger>
                 <SelectContent>
-                  {organizedUsers.map((user) => (
+                  {assignableUsers.map((user) => (
                     <SelectItem key={user.id} value={user.id}>
-                      {user.name}
+                      {user.name} {user.id === profile?.id ? '(You)' : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -204,9 +223,9 @@ export function CreateTaskDialog() {
         <div className="flex justify-end">
           <Button 
             onClick={handleCreateTask} 
-            disabled={!taskData.title || !taskData.assignedToId}
+            disabled={!taskData.title || !taskData.assignedToId || isLoading}
           >
-            Create Task
+            {isLoading ? 'Creating...' : 'Create Task'}
           </Button>
         </div>
       </DialogContent>
