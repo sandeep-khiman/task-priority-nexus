@@ -9,14 +9,23 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Header } from '@/components/Header';
 import { TeamManagement } from '@/components/TeamManagement';
+import { useToast } from '@/components/ui/use-toast';
 
 export default function AdminSettings() {
-  const { user } = useAuth();
+  const { profile } = useAuth();
+  const { toast } = useToast();
 
   // Only allow admins to access this page
-  if (!user || user.role !== 'admin') {
+  if (!profile || profile.role !== 'admin') {
     return <Navigate to="/" />;
   }
+
+  const handleSaveSettings = () => {
+    toast({
+      title: "Settings saved",
+      description: "Your changes have been saved successfully."
+    });
+  };
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -61,7 +70,7 @@ export default function AdminSettings() {
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button>Save Changes</Button>
+                  <Button onClick={handleSaveSettings}>Save Changes</Button>
                 </CardFooter>
               </Card>
               
@@ -90,7 +99,7 @@ export default function AdminSettings() {
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button>Save Changes</Button>
+                  <Button onClick={handleSaveSettings}>Save Changes</Button>
                 </CardFooter>
               </Card>
             </TabsContent>

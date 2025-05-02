@@ -1,8 +1,9 @@
+
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { useTaskContext } from '@/contexts/TaskContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,7 +15,6 @@ import { cn } from '@/lib/utils';
 import { CalendarIcon, Plus } from 'lucide-react';
 import { Quadrant } from '@/types/task';
 import { User } from '@/types/user';
-import { userService } from '@/services/userService';
 
 const initialTaskState = {
   title: '',
@@ -59,7 +59,7 @@ export function CreateTaskDialog() {
   }, [open, user, profile, getVisibleUsers, taskData.assignedToId]);
   
   const handleCreateTask = async () => {
-    if (!user || !taskData.title || !taskData.assignedToId) return;
+    if (!profile || !taskData.title || !taskData.assignedToId) return;
     
     setIsLoading(true);
     
@@ -69,8 +69,8 @@ export function CreateTaskDialog() {
       
       await createTask({
         ...taskData,
-        createdById: user.id,
-        createdByName: profile?.name || '',
+        createdById: profile.id,
+        createdByName: profile.name || '',
         assignedToName: assignedUser?.name || ''
       });
       
@@ -95,6 +95,7 @@ export function CreateTaskDialog() {
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Create New Task</DialogTitle>
+          <DialogDescription>Create a new task and assign it to a team member</DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4 py-4">
@@ -181,7 +182,7 @@ export function CreateTaskDialog() {
                     {date ? format(date, "PPP") : "Select date"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
+                <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
                     selected={date}
