@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Task, Quadrant } from '@/types/task';
 
@@ -47,8 +46,8 @@ export const taskService = {
         quadrant,
         created_at,
         updated_at,
-        assignee:assigned_to_id(name),
-        creator:created_by_id(name)
+        profiles!assigned_to_id(name),
+        profiles!created_by_id(name)
       `)
       .order('created_at', { ascending: false });
 
@@ -64,9 +63,9 @@ export const taskService = {
       icon: task.icon || '📝',
       progress: task.progress,
       createdById: task.created_by_id,
-      createdByName: task.creator?.name || 'Unknown',
+      createdByName: task.profiles && task.profiles.name ? task.profiles.name : 'Unknown',
       assignedToId: task.assigned_to_id,
-      assignedToName: task.assignee?.name || 'Unassigned',
+      assignedToName: task.profiles && task.profiles.name ? task.profiles.name : 'Unassigned',
       dueDate: task.due_date,
       completed: task.completed,
       quadrant: task.quadrant as Quadrant,
@@ -92,8 +91,8 @@ export const taskService = {
         quadrant,
         created_at,
         updated_at,
-        assignee:assigned_to_id(name),
-        creator:created_by_id(name)
+        profiles!assigned_to_id(name),
+        profiles!created_by_id(name)
       `)
       .eq('id', taskId)
       .single();
@@ -112,9 +111,9 @@ export const taskService = {
       icon: data.icon || '📝',
       progress: data.progress,
       createdById: data.created_by_id,
-      createdByName: data.creator?.name || 'Unknown',
+      createdByName: data.profiles && data.profiles.name ? data.profiles.name : 'Unknown',
       assignedToId: data.assigned_to_id,
-      assignedToName: data.assignee?.name || 'Unassigned',
+      assignedToName: data.profiles && data.profiles.name ? data.profiles.name : 'Unassigned',
       dueDate: data.due_date,
       completed: data.completed,
       quadrant: data.quadrant as Quadrant,
@@ -194,8 +193,8 @@ export const taskService = {
         quadrant,
         created_at,
         updated_at,
-        assignee:assigned_to_id(name),
-        creator:created_by_id(name)
+        profiles!assigned_to_id(name),
+        profiles!created_by_id(name)
       `)
       .single();
 
@@ -213,9 +212,9 @@ export const taskService = {
       icon: data.icon || '📝',
       progress: data.progress,
       createdById: data.created_by_id,
-      createdByName: data.creator?.name || 'Unknown',
+      createdByName: data.profiles && data.profiles.name ? data.profiles.name : 'Unknown',
       assignedToId: data.assigned_to_id,
-      assignedToName: data.assignee?.name || 'Unassigned',
+      assignedToName: data.profiles && data.profiles.name ? data.profiles.name : 'Unassigned',
       dueDate: data.due_date,
       completed: data.completed,
       quadrant: data.quadrant as Quadrant,

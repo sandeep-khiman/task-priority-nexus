@@ -10,14 +10,14 @@ import { useToast } from '@/components/ui/use-toast';
 import { ClipboardList } from 'lucide-react';
 
 export default function Dashboard() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, profile } = useAuth();
   const { toast } = useToast();
   
   useEffect(() => {
     // Welcome message showing role-specific info
-    if (user) {
+    if (profile) {
       let message = '';
-      switch (user.role) {
+      switch (profile.role) {
         case 'admin':
           message = 'You have full access to all tasks and users.';
           break;
@@ -33,11 +33,11 @@ export default function Dashboard() {
       }
       
       toast({
-        title: `Welcome, ${user.name}`,
+        title: `Welcome, ${profile.name}`,
         description: message,
       });
     }
-  }, [user, toast]);
+  }, [profile, toast]);
 
   if (!isAuthenticated) {
     return <Navigate to="/login" />;

@@ -1,4 +1,6 @@
 
+import { User as SupabaseUser } from '@supabase/supabase-js';
+
 export type UserRole = 'admin' | 'manager' | 'team-lead' | 'employee';
 
 export interface User {
@@ -15,7 +17,8 @@ export interface User {
 
 export interface AuthState {
   isAuthenticated: boolean;
-  user: User | null;
+  user: SupabaseUser | null;
+  profile: User | null;
   isLoading: boolean;
   error: string | null;
 }
@@ -23,19 +26,20 @@ export interface AuthState {
 export interface Team {
   id: string;
   name: string;
-  leadId: string;
-  memberIds: string[];
-  managerId?: string; // Manager that owns this team
+  manager_id?: string; // Changed from managerId to match DB schema
+  leadId?: string;
+  memberIds?: string[];
+  created_at?: string; // Added to match DB schema
+  updated_at?: string; // Added to match DB schema
 }
 
 export interface CreateTeamPayload {
   name: string;
   leadId: string;
   memberIds: string[];
-  managerId: string; // Added manager ID to team creation payload
+  managerId: string;
 }
 
-// New interface for team editing
 export interface EditTeamPayload {
   id: string;
   name: string;

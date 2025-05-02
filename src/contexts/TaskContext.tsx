@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Task, Quadrant } from '@/types/task';
 import { useToast } from '@/components/ui/use-toast';
@@ -24,6 +23,12 @@ interface TaskContextType {
   updateTask: (task: any) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
   getVisibleUsers: () => User[];
+  moveTask: (taskId: string, quadrant: Quadrant) => Promise<void>;
+  toggleTaskCompletion: (taskId: string) => Promise<void>;
+  hideCompleted: boolean;
+  setHideCompleted: React.Dispatch<React.SetStateAction<boolean>>;
+  selectedUserId: string | null;
+  setSelectedUserId: (userId: string | null) => void;
 }
 
 const initialFilterState: TaskFilterState = {
@@ -48,6 +53,8 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<TaskFilterState>(initialFilterState);
+  const [hideCompleted, setHideCompleted] = useState<boolean>(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const { toast } = useToast();
   const { user, profile, isAuthenticated } = useAuth();
 
@@ -209,6 +216,78 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Move task to different quadrant
+  const moveTask = async (taskId: string, quadrant: Quadrant) => {
+    setIsLoading(true);
+    try {
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) return;
+      
+      const updatedTask = await taskService.updateTask({
+        id: taskId,
+        quadrant
+      });
+      
+      if (updatedTask) {
+        setTasks(prevTasks => 
+          prevTasks.map(task => 
+            task.id === updatedTask.id ? updatedTask : task
+          )
+        );
+        
+        toast({
+          title: 'Task Updated',
+          description: 'Task moved to new quadrant successfully'
+        });
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to move task');
+      toast({
+        title: 'Error',
+        description: 'Failed to move task',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Toggle task completion status
+  const toggleTaskCompletion = async (taskId: string) => {
+    setIsLoading(true);
+    try {
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) return;
+      
+      const updatedTask = await taskService.updateTask({
+        id: taskId,
+        completed: !task.completed
+      });
+      
+      if (updatedTask) {
+        setTasks(prevTasks => 
+          prevTasks.map(task => 
+            task.id === updatedTask.id ? updatedTask : task
+          )
+        );
+        
+        toast({
+          title: 'Task Updated',
+          description: `Task marked as ${updatedTask.completed ? 'completed' : 'incomplete'}`
+        });
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to update task');
+      toast({
+        title: 'Error',
+        description: 'Failed to update task',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Return visible users based on permissions
   const getVisibleUsers = (): User[] => {
     return users;
@@ -217,12 +296,12 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Apply filters to tasks
   const filteredTasks = tasks.filter(task => {
     // Filter by completion status
-    if (!filter.showCompleted && task.completed) {
+    if (hideCompleted && task.completed) {
       return false;
     }
 
     // Filter by assignee
-    if (filter.assigneeFilter !== 'all' && task.assignedToId !== filter.assigneeFilter) {
+    if (selectedUserId && task.assignedToId !== selectedUserId) {
       return false;
     }
 
@@ -244,7 +323,13 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     createTask,
     updateTask,
     deleteTask,
-    getVisibleUsers
+    getVisibleUsers,
+    moveTask,
+    toggleTaskCompletion,
+    hideCompleted,
+    setHideCompleted,
+    selectedUserId,
+    setSelectedUserId
   };
 
   return <TaskContext.Provider value={value}>{children}</TaskContext.Provider>;

@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Team, CreateTeamPayload, EditTeamPayload, User } from '@/types/user';
 
@@ -21,12 +20,43 @@ export const teamService = {
       throw error;
     }
 
-    return data || [];
+    // Process the teams to match the expected Team structure
+    const teams: Team[] = [];
+    for (const teamData of data || []) {
+      // For each team, find its lead and members
+      const { data: memberData, error: memberError } = await supabase
+        .from('team_members')
+        .select(`
+          user_id,
+          is_lead
+        `)
+        .eq('team_id', teamData.id);
+
+      if (memberError) {
+        console.error('Error fetching team members:', memberError);
+        continue;
+      }
+
+      const leadId = memberData?.find(m => m.is_lead)?.user_id;
+      const memberIds = memberData?.filter(m => !m.is_lead).map(m => m.user_id) || [];
+
+      teams.push({
+        id: teamData.id,
+        name: teamData.name,
+        manager_id: teamData.manager_id,
+        leadId,
+        memberIds,
+        created_at: teamData.created_at,
+        updated_at: teamData.updated_at
+      });
+    }
+
+    return teams;
   },
 
   // Fetch a single team by ID
   async getTeamById(teamId: string): Promise<Team | null> {
-    const { data, error } = await supabase
+    const { data: teamData, error: teamError } = await supabase
       .from('teams')
       .select(`
         id,
@@ -38,12 +68,39 @@ export const teamService = {
       .eq('id', teamId)
       .single();
 
-    if (error) {
-      console.error('Error fetching team:', error);
-      throw error;
+    if (teamError) {
+      console.error('Error fetching team:', teamError);
+      throw teamError;
     }
 
-    return data;
+    if (!teamData) return null;
+
+    // Get team members
+    const { data: memberData, error: memberError } = await supabase
+      .from('team_members')
+      .select(`
+        user_id,
+        is_lead
+      `)
+      .eq('team_id', teamId);
+
+    if (memberError) {
+      console.error('Error fetching team members:', memberError);
+      return null;
+    }
+
+    const leadId = memberData?.find(m => m.is_lead)?.user_id;
+    const memberIds = memberData?.filter(m => !m.is_lead).map(m => m.user_id) || [];
+
+    return {
+      id: teamData.id,
+      name: teamData.name,
+      manager_id: teamData.manager_id,
+      leadId,
+      memberIds,
+      created_at: teamData.created_at,
+      updated_at: teamData.updated_at
+    };
   },
 
   // Create a new team
@@ -221,6 +278,37 @@ export const teamService = {
       throw error;
     }
 
-    return data || [];
+    // Process the teams to match the expected Team structure
+    const teams: Team[] = [];
+    for (const teamData of data || []) {
+      // For each team, find its lead and members
+      const { data: memberData, error: memberError } = await supabase
+        .from('team_members')
+        .select(`
+          user_id,
+          is_lead
+        `)
+        .eq('team_id', teamData.id);
+
+      if (memberError) {
+        console.error('Error fetching team members:', memberError);
+        continue;
+      }
+
+      const leadId = memberData?.find(m => m.is_lead)?.user_id;
+      const memberIds = memberData?.filter(m => !m.is_lead).map(m => m.user_id) || [];
+
+      teams.push({
+        id: teamData.id,
+        name: teamData.name,
+        manager_id: teamData.manager_id,
+        leadId,
+        memberIds,
+        created_at: teamData.created_at,
+        updated_at: teamData.updated_at
+      });
+    }
+
+    return teams;
   }
 };

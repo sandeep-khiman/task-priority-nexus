@@ -7,25 +7,25 @@ import { ManagerTeamManagement } from '@/components/ManagerTeamManagement';
 import { useToast } from '@/components/ui/use-toast';
 
 export default function ManagerDashboard() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, profile } = useAuth();
   const { toast } = useToast();
   
   useEffect(() => {
     // Welcome message
-    if (user?.role === 'manager') {
+    if (profile?.role === 'manager') {
       toast({
-        title: `Welcome, ${user.name}`,
+        title: `Welcome, ${profile.name}`,
         description: 'Here you can manage your teams and team members.',
       });
     }
-  }, [user, toast]);
+  }, [profile, toast]);
 
   if (!isAuthenticated) {
     return <Navigate to="/login" />;
   }
   
   // Ensure only managers can access this page
-  if (user?.role !== 'manager') {
+  if (profile?.role !== 'manager') {
     return <Navigate to="/" />;
   }
 

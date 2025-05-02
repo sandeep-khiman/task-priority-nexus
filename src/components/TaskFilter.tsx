@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 
 export function TaskFilter() {
   const { hideCompleted, setHideCompleted, selectedUserId, setSelectedUserId, getVisibleUsers } = useTaskContext();
-  const { user } = useAuth();
+  const { profile } = useAuth();
   const visibleUsers = getVisibleUsers();
 
   // Get user role label for display

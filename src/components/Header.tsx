@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { CircleUserRound, Settings, ClipboardList, UsersRound } from 'lucide-react';
 
 export function Header() {
-  const { user, logout } = useAuth();
+  const { user, profile, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -40,7 +40,7 @@ export function Header() {
             </Link>
           </Button>
 
-          {user?.role === 'admin' && (
+          {profile?.role === 'admin' && (
             <Button variant="ghost" asChild>
               <Link to="/admin" className="flex items-center">
                 <Settings className="mr-2 h-5 w-5" />
@@ -49,7 +49,7 @@ export function Header() {
             </Button>
           )}
 
-          {user?.role === 'manager' && (
+          {profile?.role === 'manager' && (
             <Button variant="ghost" asChild>
               <Link to="/manager" className="flex items-center">
                 <UsersRound className="mr-2 h-5 w-5" />
@@ -62,15 +62,15 @@ export function Header() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                 <Avatar className="h-8 w-8">
-                  <AvatarFallback>{user ? getInitials(user.name) : <CircleUserRound className="h-5 w-5" />}</AvatarFallback>
+                  <AvatarFallback>{profile ? getInitials(profile.name) : <CircleUserRound className="h-5 w-5" />}</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="end" forceMount>
-              {user && (
+              {profile && (
                 <DropdownMenuItem className="flex flex-col items-start">
-                  <div className="text-sm font-medium">{user.name}</div>
-                  <div className="text-xs text-muted-foreground">{user.role}</div>
+                  <div className="text-sm font-medium">{profile.name}</div>
+                  <div className="text-xs text-muted-foreground">{profile.role}</div>
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem onClick={handleLogout}>Sign out</DropdownMenuItem>

@@ -1,10 +1,10 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Session, User } from '@supabase/supabase-js';
+import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { UserRole } from '@/types/user';
+import { UserRole, User } from '@/types/user';
 
 interface ProfileData {
   id: string;
@@ -18,9 +18,9 @@ interface ProfileData {
 
 interface AuthState {
   isAuthenticated: boolean;
-  user: User | null;
+  user: SupabaseUser | null;
   session: Session | null;
-  profile: ProfileData | null;
+  profile: User | null;
   isLoading: boolean;
   error: string | null;
 }
@@ -71,7 +71,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return null;
       }
 
-      return data as ProfileData;
+      // Convert DB format to app format
+      return data ? {
+        id: data.id,
+        email: data.email,
+        name: data.name,
+        role: data.role as UserRole,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      } as User : null;
     } catch (error) {
       console.error('Exception fetching profile:', error);
       return null;
