@@ -1,5 +1,3 @@
-
-// Just fixing specific parts of the component
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { useTaskContext } from '@/contexts/TaskContext';
@@ -58,7 +56,7 @@ export function CreateTaskDialog() {
         }));
       }
     }
-  }, [open, user, profile]);
+  }, [open, user, profile, getVisibleUsers, taskData.assignedToId]);
   
   const handleCreateTask = async () => {
     if (!user || !taskData.title || !taskData.assignedToId) return;
@@ -72,7 +70,7 @@ export function CreateTaskDialog() {
       await createTask({
         ...taskData,
         createdById: user.id,
-        createdByName: user?.profile?.name || '',
+        createdByName: profile?.name || '',
         assignedToName: assignedUser?.name || ''
       });
       

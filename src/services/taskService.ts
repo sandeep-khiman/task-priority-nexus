@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { Task, Quadrant } from '@/types/task';
 
@@ -33,22 +34,7 @@ export const taskService = {
   async getTasks(): Promise<Task[]> {
     const { data, error } = await supabase
       .from('tasks')
-      .select(`
-        id,
-        title,
-        notes,
-        icon,
-        progress,
-        created_by_id,
-        assigned_to_id,
-        due_date,
-        completed,
-        quadrant,
-        created_at,
-        updated_at,
-        profiles!assigned_to_id(name),
-        profiles!created_by_id(name)
-      `)
+      .select('*')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -56,44 +42,61 @@ export const taskService = {
       throw error;
     }
 
-    return (data || []).map(task => ({
-      id: task.id,
-      title: task.title,
-      notes: task.notes,
-      icon: task.icon || '📝',
-      progress: task.progress,
-      createdById: task.created_by_id,
-      createdByName: task.profiles && task.profiles.name ? task.profiles.name : 'Unknown',
-      assignedToId: task.assigned_to_id,
-      assignedToName: task.profiles && task.profiles.name ? task.profiles.name : 'Unassigned',
-      dueDate: task.due_date,
-      completed: task.completed,
-      quadrant: task.quadrant as Quadrant,
-      createdAt: task.created_at,
-      updatedAt: task.updated_at
-    }));
+    // Get created by and assigned to profiles in separate queries
+    const tasks: Task[] = [];
+    for (const task of data || []) {
+      // Get creator profile
+      let createdByName = 'Unknown';
+      if (task.created_by_id) {
+        const { data: creatorData } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('id', task.created_by_id)
+          .single();
+        if (creatorData) {
+          createdByName = creatorData.name;
+        }
+      }
+
+      // Get assignee profile
+      let assignedToName = 'Unassigned';
+      if (task.assigned_to_id) {
+        const { data: assigneeData } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('id', task.assigned_to_id)
+          .single();
+        if (assigneeData) {
+          assignedToName = assigneeData.name;
+        }
+      }
+
+      tasks.push({
+        id: task.id,
+        title: task.title,
+        notes: task.notes,
+        icon: task.icon || '📝',
+        progress: task.progress,
+        createdById: task.created_by_id,
+        createdByName,
+        assignedToId: task.assigned_to_id,
+        assignedToName,
+        dueDate: task.due_date,
+        completed: task.completed,
+        quadrant: task.quadrant as Quadrant,
+        createdAt: task.created_at,
+        updatedAt: task.updated_at
+      });
+    }
+
+    return tasks;
   },
 
   // Get a task by ID
   async getTaskById(taskId: string): Promise<Task | null> {
-    const { data, error } = await supabase
+    const { data: task, error } = await supabase
       .from('tasks')
-      .select(`
-        id,
-        title,
-        notes,
-        icon,
-        progress,
-        created_by_id,
-        assigned_to_id,
-        due_date,
-        completed,
-        quadrant,
-        created_at,
-        updated_at,
-        profiles!assigned_to_id(name),
-        profiles!created_by_id(name)
-      `)
+      .select('*')
       .eq('id', taskId)
       .single();
 
@@ -102,23 +105,49 @@ export const taskService = {
       return null;
     }
 
-    if (!data) return null;
+    if (!task) return null;
+
+    // Get creator profile
+    let createdByName = 'Unknown';
+    if (task.created_by_id) {
+      const { data: creatorData } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('id', task.created_by_id)
+        .single();
+      if (creatorData) {
+        createdByName = creatorData.name;
+      }
+    }
+
+    // Get assignee profile
+    let assignedToName = 'Unassigned';
+    if (task.assigned_to_id) {
+      const { data: assigneeData } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('id', task.assigned_to_id)
+        .single();
+      if (assigneeData) {
+        assignedToName = assigneeData.name;
+      }
+    }
 
     return {
-      id: data.id,
-      title: data.title,
-      notes: data.notes,
-      icon: data.icon || '📝',
-      progress: data.progress,
-      createdById: data.created_by_id,
-      createdByName: data.profiles && data.profiles.name ? data.profiles.name : 'Unknown',
-      assignedToId: data.assigned_to_id,
-      assignedToName: data.profiles && data.profiles.name ? data.profiles.name : 'Unassigned',
-      dueDate: data.due_date,
-      completed: data.completed,
-      quadrant: data.quadrant as Quadrant,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at
+      id: task.id,
+      title: task.title,
+      notes: task.notes,
+      icon: task.icon || '📝',
+      progress: task.progress,
+      createdById: task.created_by_id,
+      createdByName,
+      assignedToId: task.assigned_to_id,
+      assignedToName,
+      dueDate: task.due_date,
+      completed: task.completed,
+      quadrant: task.quadrant as Quadrant,
+      createdAt: task.created_at,
+      updatedAt: task.updated_at
     };
   },
 
@@ -176,26 +205,11 @@ export const taskService = {
     if (task.quadrant !== undefined) updates.quadrant = task.quadrant;
     updates.updated_at = new Date().toISOString();
 
-    const { data, error } = await supabase
+    const { data: task_data, error } = await supabase
       .from('tasks')
       .update(updates)
       .eq('id', task.id)
-      .select(`
-        id,
-        title,
-        notes,
-        icon,
-        progress,
-        created_by_id,
-        assigned_to_id,
-        due_date,
-        completed,
-        quadrant,
-        created_at,
-        updated_at,
-        profiles!assigned_to_id(name),
-        profiles!created_by_id(name)
-      `)
+      .select()
       .single();
 
     if (error) {
@@ -203,23 +217,49 @@ export const taskService = {
       throw error;
     }
 
-    if (!data) return null;
+    if (!task_data) return null;
+
+    // Get creator profile
+    let createdByName = 'Unknown';
+    if (task_data.created_by_id) {
+      const { data: creatorData } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('id', task_data.created_by_id)
+        .single();
+      if (creatorData) {
+        createdByName = creatorData.name;
+      }
+    }
+
+    // Get assignee profile
+    let assignedToName = task.assignedToName || 'Unassigned';
+    if (task_data.assigned_to_id && !task.assignedToName) {
+      const { data: assigneeData } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('id', task_data.assigned_to_id)
+        .single();
+      if (assigneeData) {
+        assignedToName = assigneeData.name;
+      }
+    }
 
     return {
-      id: data.id,
-      title: data.title,
-      notes: data.notes,
-      icon: data.icon || '📝',
-      progress: data.progress,
-      createdById: data.created_by_id,
-      createdByName: data.profiles && data.profiles.name ? data.profiles.name : 'Unknown',
-      assignedToId: data.assigned_to_id,
-      assignedToName: data.profiles && data.profiles.name ? data.profiles.name : 'Unassigned',
-      dueDate: data.due_date,
-      completed: data.completed,
-      quadrant: data.quadrant as Quadrant,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at
+      id: task_data.id,
+      title: task_data.title,
+      notes: task_data.notes,
+      icon: task_data.icon || '📝',
+      progress: task_data.progress,
+      createdById: task_data.created_by_id,
+      createdByName,
+      assignedToId: task_data.assigned_to_id,
+      assignedToName,
+      dueDate: task_data.due_date,
+      completed: task_data.completed,
+      quadrant: task_data.quadrant as Quadrant,
+      createdAt: task_data.created_at,
+      updatedAt: task_data.updated_at
     };
   },
 

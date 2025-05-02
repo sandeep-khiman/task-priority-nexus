@@ -159,7 +159,7 @@ export const teamService = {
       name: team.name,
       leadId: team.leadId,
       memberIds: team.memberIds,
-      managerId: team.managerId
+      manager_id: team.managerId
     };
   },
 
@@ -223,7 +223,13 @@ export const teamService = {
       }
     }
 
-    return team;
+    return {
+      id: team.id,
+      name: team.name,
+      leadId: team.leadId,
+      memberIds: team.memberIds,
+      manager_id: team.managerId
+    };
   },
 
   // Delete a team

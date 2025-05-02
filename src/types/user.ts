@@ -26,11 +26,11 @@ export interface AuthState {
 export interface Team {
   id: string;
   name: string;
-  manager_id?: string; // Changed from managerId to match DB schema
+  manager_id?: string; // Keep as manager_id to match DB schema
   leadId?: string;
   memberIds?: string[];
-  created_at?: string; // Added to match DB schema
-  updated_at?: string; // Added to match DB schema
+  created_at?: string; // Match DB schema
+  updated_at?: string; // Match DB schema
 }
 
 export interface CreateTeamPayload {

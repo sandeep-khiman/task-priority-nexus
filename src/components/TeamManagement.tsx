@@ -128,21 +128,21 @@ export function TeamManagement({ }: TeamManagementProps) {
         name: 'Development Team',
         leadId: '3',
         memberIds: ['5', '6'],
-        managerId: '2' // Manager One
+        manager_id: '2' // Manager One
       },
       {
         id: '2',
         name: 'QA Team',
         leadId: '4',
         memberIds: ['7', '8'],
-        managerId: '2' // Manager One
+        manager_id: '2' // Manager One
       },
       {
         id: '3',
         name: 'DevOps Team',
         leadId: '10',
         memberIds: [],
-        managerId: '9' // Manager Two
+        manager_id: '9' // Manager Two
       }
     ];
     
@@ -167,7 +167,7 @@ export function TeamManagement({ }: TeamManagementProps) {
       name: teamData.name,
       leadId: teamData.leadId,
       memberIds: teamData.memberIds,
-      managerId: teamData.managerId
+      manager_id: teamData.managerId
     };
     
     setTeams(prev => [...prev, newTeam]);
@@ -201,7 +201,7 @@ export function TeamManagement({ }: TeamManagementProps) {
 
     // Also update the corresponding team if it exists
     setTeams(prev => prev.map(team => {
-      if (team.leadId === teamLeadId) {
+      if (team.leadId === teamLeadId && team.memberIds) {
         return {
           ...team,
           memberIds: [...team.memberIds, employeeId]
@@ -228,7 +228,7 @@ export function TeamManagement({ }: TeamManagementProps) {
 
     // Also update the corresponding team if it exists
     setTeams(prev => prev.map(team => {
-      if (team.leadId === teamLeadId) {
+      if (team.leadId === teamLeadId && team.memberIds) {
         return {
           ...team,
           memberIds: team.memberIds.filter(id => id !== employeeId)
@@ -322,20 +322,20 @@ export function TeamManagement({ }: TeamManagementProps) {
                 <TableBody>
                   {teams.length > 0 ? (
                     teams
-                      .filter(team => selectedManager === 'all' || team.managerId === selectedManager)
+                      .filter(team => selectedManager === 'all' || team.manager_id === selectedManager)
                       .map(team => (
                       <TableRow key={team.id}>
                         <TableCell className="font-medium">{team.name}</TableCell>
-                        <TableCell>{getManagerName(team.managerId || '')}</TableCell>
-                        <TableCell>{getTeamLeadName(team.leadId)}</TableCell>
+                        <TableCell>{getManagerName(team.manager_id || '')}</TableCell>
+                        <TableCell>{getTeamLeadName(team.leadId || '')}</TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
-                            {team.memberIds.map(memberId => (
+                            {team.memberIds?.map(memberId => (
                               <Badge key={memberId} variant="secondary">
                                 {getEmployeeName(memberId)}
                               </Badge>
                             ))}
-                            {team.memberIds.length === 0 && (
+                            {!team.memberIds || team.memberIds.length === 0 && (
                               <span className="text-muted-foreground">No members</span>
                             )}
                           </div>

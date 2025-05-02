@@ -16,7 +16,7 @@ import { EditTeamDialog } from './EditTeamDialog';
 
 export function ManagerTeamManagement() {
   const { toast } = useToast();
-  const { user: currentUser } = useAuth();
+  const { profile } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [teamLeads, setTeamLeads] = useState<User[]>([]);
   const [employees, setEmployees] = useState<User[]>([]);
@@ -98,8 +98,8 @@ export function ManagerTeamManagement() {
     ];
 
     // Filter users relevant to this manager (in a real app, this would come from the API)
-    const filteredUsers = currentUser?.role === 'manager' 
-      ? mockUsers.filter(u => u.managerId === currentUser.id || u.role === 'team-lead' || u.role === 'employee')
+    const filteredUsers = profile?.role === 'manager' 
+      ? mockUsers.filter(u => u.managerId === profile.id || u.role === 'team-lead' || u.role === 'employee')
       : mockUsers;
 
     // Mock teams
@@ -109,20 +109,20 @@ export function ManagerTeamManagement() {
         name: 'Development Team',
         leadId: '3',
         memberIds: ['5', '6'],
-        managerId: '2' // Manager One
+        manager_id: '2' // Manager One
       },
       {
         id: '2',
         name: 'QA Team',
         leadId: '4',
         memberIds: ['7', '8'],
-        managerId: '2' // Manager One
+        manager_id: '2' // Manager One
       }
     ];
     
     // Filter teams managed by the current manager
-    const filteredTeams = currentUser?.role === 'manager'
-      ? mockTeams.filter(team => team.managerId === currentUser.id)
+    const filteredTeams = profile?.role === 'manager'
+      ? mockTeams.filter(team => team.manager_id === profile.id)
       : mockTeams;
     
     setUsers(filteredUsers);
@@ -130,7 +130,7 @@ export function ManagerTeamManagement() {
     setEmployees(filteredUsers.filter(user => user.role === 'employee'));
     setTeams(filteredTeams);
     setIsLoading(false);
-  }, [currentUser]);
+  }, [profile]);
 
   // Function to create a new team
   const handleCreateTeam = (teamData: CreateTeamPayload) => {
@@ -139,7 +139,7 @@ export function ManagerTeamManagement() {
       name: teamData.name,
       leadId: teamData.leadId,
       memberIds: teamData.memberIds,
-      managerId: teamData.managerId || (currentUser?.id || '')
+      manager_id: teamData.managerId || (profile?.id || '')
     };
     
     setTeams(prev => [...prev, newTeam]);
@@ -147,7 +147,7 @@ export function ManagerTeamManagement() {
     // Update team lead with manager ID
     setTeamLeads(prev => prev.map(tl => 
       tl.id === teamData.leadId 
-        ? { ...tl, managerId: teamData.managerId || currentUser?.id } 
+        ? { ...tl, managerId: teamData.managerId || profile?.id } 
         : tl
     ));
     
@@ -166,7 +166,7 @@ export function ManagerTeamManagement() {
     // Update team lead with manager ID if changed
     setTeamLeads(prev => prev.map(tl => 
       tl.id === updatedTeam.leadId 
-        ? { ...tl, managerId: updatedTeam.managerId } 
+        ? { ...tl, managerId: updatedTeam.manager_id } 
         : tl
     ));
     
@@ -182,7 +182,7 @@ export function ManagerTeamManagement() {
   // Function to handle adding an employee to a team
   const handleAddToTeam = (teamId: string, employeeId: string) => {
     setTeams(prev => prev.map(team => {
-      if (team.id === teamId && !team.memberIds.includes(employeeId)) {
+      if (team.id === teamId && team.memberIds && !team.memberIds.includes(employeeId)) {
         return {
           ...team,
           memberIds: [...team.memberIds, employeeId]
@@ -200,7 +200,7 @@ export function ManagerTeamManagement() {
   // Function to handle removing an employee from a team
   const handleRemoveFromTeam = (teamId: string, employeeId: string) => {
     setTeams(prev => prev.map(team => {
-      if (team.id === teamId) {
+      if (team.id === teamId && team.memberIds) {
         return {
           ...team,
           memberIds: team.memberIds.filter(id => id !== employeeId)
@@ -218,7 +218,7 @@ export function ManagerTeamManagement() {
   // Check if an employee is in a specific team
   const isEmployeeInTeam = (teamId: string, employeeId: string) => {
     const team = teams.find(t => t.id === teamId);
-    return team ? team.memberIds.includes(employeeId) : false;
+    return team && team.memberIds ? team.memberIds.includes(employeeId) : false;
   };
 
   // Get user name by ID
@@ -245,7 +245,7 @@ export function ManagerTeamManagement() {
         <CreateTeamDialog 
           users={users} 
           teamLeads={teamLeads}
-          managers={[currentUser!].filter(u => !!u)}
+          managers={profile ? [profile].filter(u => !!u) : []}
           onCreateTeam={handleCreateTeam} 
         />
       </CardHeader>

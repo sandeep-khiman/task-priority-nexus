@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -19,7 +18,7 @@ interface CreateTeamDialogProps {
 
 export function CreateTeamDialog({ users, teamLeads, managers, onCreateTeam }: CreateTeamDialogProps) {
   const { toast } = useToast();
-  const { user: currentUser } = useAuth();
+  const { profile } = useAuth();
   const [open, setOpen] = useState(false);
   const [teamName, setTeamName] = useState('');
   const [selectedManagerId, setSelectedManagerId] = useState<string>('');
@@ -31,22 +30,22 @@ export function CreateTeamDialog({ users, teamLeads, managers, onCreateTeam }: C
 
   // Set manager automatically if current user is a manager
   useEffect(() => {
-    if (currentUser?.role === 'manager' && !selectedManagerId) {
-      setSelectedManagerId(currentUser.id);
+    if (profile?.role === 'manager' && !selectedManagerId) {
+      setSelectedManagerId(profile.id);
     }
-  }, [currentUser, selectedManagerId]);
+  }, [profile, selectedManagerId]);
 
   // Reset selections when dialog opens/closes
   useEffect(() => {
     if (!open) {
       setTeamName('');
-      if (currentUser?.role !== 'manager') {
+      if (profile?.role !== 'manager') {
         setSelectedManagerId('');
       }
       setSelectedLeadId('');
       setSelectedMemberIds([]);
     }
-  }, [open, currentUser]);
+  }, [open, profile]);
 
   const handleCreateTeam = () => {
     if (!teamName || !selectedManagerId || !selectedLeadId) {
@@ -69,7 +68,7 @@ export function CreateTeamDialog({ users, teamLeads, managers, onCreateTeam }: C
     
     // Reset form
     setTeamName('');
-    if (currentUser?.role !== 'manager') {
+    if (profile?.role !== 'manager') {
       setSelectedManagerId('');
     }
     setSelectedLeadId('');
@@ -116,7 +115,7 @@ export function CreateTeamDialog({ users, teamLeads, managers, onCreateTeam }: C
             />
           </div>
           
-          {currentUser?.role !== 'manager' && (
+          {profile?.role !== 'manager' && (
             <div className="grid gap-2">
               <Label>Manager</Label>
               <Select 
