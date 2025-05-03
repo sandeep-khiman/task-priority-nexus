@@ -64,7 +64,7 @@ export interface SystemSettings {
   warningDays: number;
 }
 
-// Add this interface to help with type conversions between Supabase Json and our app types
+// Define a more specific type for JSON conversion that matches Supabase's Json type
 export interface SystemSettingsJson {
   taskDueDateThresholds: {
     critical: number;
@@ -76,3 +76,6 @@ export interface SystemSettingsJson {
   markOverdueDays: number;
   warningDays: number;
 }
+
+// Helper type that matches Supabase's Json type structure
+export type Json = string | number | boolean | null | { [key: string]: Json } | Json[];

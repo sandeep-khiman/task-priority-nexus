@@ -1,7 +1,5 @@
 
-// Check and update any references to manager_id
-// Fix issue with manager_id field in CreateUserDialog
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -25,12 +23,14 @@ import { PlusCircle } from 'lucide-react';
 import { UserRole, User } from '@/types/user';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 
 export function CreateUserDialog() {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [needsManager, setNeedsManager] = useState(false);
   const [managers, setManagers] = useState<User[]>([]);
+  const navigate = useNavigate();
   
   const { toast } = useToast();
   
@@ -59,9 +59,13 @@ export function CreateUserDialog() {
           name: manager.name,
           role: manager.role as UserRole,
           managerId: manager.manager_id,
+          manager_id: manager.manager_id,
           createdAt: manager.created_at,
           updatedAt: manager.updated_at
         })));
+        
+        // Initialize needsManager based on the default role
+        setNeedsManager(formData.role === 'employee' || formData.role === 'team-lead');
       } catch (error) {
         console.error('Error fetching managers:', error);
       }
@@ -85,6 +89,11 @@ export function CreateUserDialog() {
     
     // Check if the role needs a manager assignment
     setNeedsManager(role === 'employee' || role === 'team-lead');
+    
+    // Clear manager ID if not needed
+    if (role === 'admin' || role === 'manager') {
+      setFormData(prev => ({...prev, managerId: ''}));
+    }
   };
   
   const handleCreateUser = async () => {
@@ -154,6 +163,8 @@ export function CreateUserDialog() {
         role: 'employee' as UserRole,
         managerId: ''
       });
+      
+      // Don't navigate - just stay on the admin page
       
     } catch (error: any) {
       console.error('Error creating user:', error);

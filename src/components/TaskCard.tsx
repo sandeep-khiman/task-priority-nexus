@@ -10,6 +10,7 @@ import { TaskCompletionToggle } from './TaskCompletionToggle';
 import { Button } from './ui/button';
 import { useTaskContext } from '@/contexts/TaskContext';
 import { Calendar, Trash2 } from 'lucide-react';
+import { EditTaskDialog } from './EditTaskDialog';
 
 interface TaskCardProps {
   task: Task;
@@ -72,7 +73,6 @@ function TaskCard({ task }: TaskCardProps) {
         <Progress 
           value={task.progress} 
           className="h-2 mt-2" 
-          // Remove the indicatorClassName prop as it's not supported
         />
       </CardContent>
       <CardFooter className="p-3 pt-1 flex flex-wrap items-center text-xs text-muted-foreground gap-2 justify-between">
@@ -88,14 +88,20 @@ function TaskCard({ task }: TaskCardProps) {
           )}
         </div>
         {canModifyTask() && (
-          <Button
-            variant="ghost" 
-            size="icon"
-            className="h-6 w-6 text-muted-foreground hover:text-destructive"
-            onClick={() => deleteTask(task.id)}
-          >
-            <Trash2 size={14} />
-          </Button>
+          <div className="flex items-center">
+            <EditTaskDialog task={task} />
+            <Button
+              variant="ghost" 
+              size="icon"
+              className="h-6 w-6 text-muted-foreground hover:text-destructive"
+              onClick={(e) => {
+                e.stopPropagation();
+                deleteTask(task.id);
+              }}
+            >
+              <Trash2 size={14} />
+            </Button>
+          </div>
         )}
       </CardFooter>
     </Card>

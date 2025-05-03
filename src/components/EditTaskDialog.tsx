@@ -41,6 +41,7 @@ import { Slider } from "@/components/ui/slider";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { Task, Quadrant } from "@/types/task";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/components/ui/use-toast";
 
 const formSchema = z.object({
   title: z.string().min(1, { message: "Title is required" }),
@@ -61,6 +62,7 @@ interface EditTaskDialogProps {
 export function EditTaskDialog({ task }: EditTaskDialogProps) {
   const [open, setOpen] = useState(false);
   const { updateTask, getVisibleUsers } = useTaskContext();
+  const { toast } = useToast();
   const visibleUsers = getVisibleUsers();
 
   const form = useForm<FormValues>({
@@ -77,25 +79,45 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
   });
 
   const onSubmit = async (values: FormValues) => {
-    const selectedUser = visibleUsers.find(
-      (user) => user.id === values.assignedToId
-    );
+    try {
+      const selectedUser = visibleUsers.find(
+        (user) => user.id === values.assignedToId
+      );
 
-    if (!selectedUser) return;
+      if (!selectedUser) {
+        toast({
+          title: "Error",
+          description: "Selected user not found",
+          variant: "destructive"
+        });
+        return;
+      }
 
-    await updateTask({
-      ...task,
-      title: values.title,
-      notes: values.notes || "",
-      icon: values.icon || "📋",
-      quadrant: values.quadrant as Quadrant,
-      dueDate: values.dueDate ? values.dueDate.toISOString() : null,
-      assignedToId: selectedUser.id,
-      assignedToName: selectedUser.name,
-      progress: values.progress,
-    });
+      await updateTask({
+        ...task,
+        title: values.title,
+        notes: values.notes || "",
+        icon: values.icon || "📋",
+        quadrant: values.quadrant as Quadrant,
+        dueDate: values.dueDate ? values.dueDate.toISOString() : null,
+        assignedToId: selectedUser.id,
+        assignedToName: selectedUser.name,
+        progress: values.progress,
+      });
 
-    setOpen(false);
+      toast({
+        title: "Success",
+        description: "Task updated successfully"
+      });
+      setOpen(false);
+    } catch (error) {
+      console.error("Error updating task:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update task",
+        variant: "destructive"
+      });
+    }
   };
 
   const quadrantOptions = [
@@ -182,7 +204,7 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
                 <FormItem>
                   <FormLabel>Notes</FormLabel>
                   <FormControl>
-                    <Textarea {...field} />
+                    <Textarea {...field} value={field.value || ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -250,7 +272,7 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
                         <Calendar
                           mode="single"
                           selected={field.value || undefined}
-                          onSelect={(date) => field.onChange(date)}
+                          onSelect={field.onChange}
                           initialFocus
                         />
                       </PopoverContent>

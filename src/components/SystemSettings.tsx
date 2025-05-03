@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import type { SystemSettings as SystemSettingsType, SystemSettingsJson } from '@/types/user';
+import type { SystemSettings as SystemSettingsType, SystemSettingsJson, Json } from '@/types/user';
 
 export function SystemSettings() {
   const { toast } = useToast();
@@ -40,8 +40,8 @@ export function SystemSettings() {
       if (error) throw error;
 
       if (data) {
-        // Use type assertion to safely convert Json to our SystemSettingsType
-        const settingsData = data.settings as SystemSettingsJson;
+        // First cast to unknown then to our type to avoid direct type conversion errors
+        const settingsData = data.settings as unknown as SystemSettingsJson;
         setSettings({
           taskDueDateThresholds: {
             critical: settingsData.taskDueDateThresholds?.critical ?? 2,
@@ -69,7 +69,7 @@ export function SystemSettings() {
   const saveSettings = async () => {
     setIsSaving(true);
     try {
-      // Convert our typed settings to a plain object that Supabase can store as Json
+      // Convert our typed settings to a format compatible with Supabase's Json type
       const settingsJson: SystemSettingsJson = {
         taskDueDateThresholds: settings.taskDueDateThresholds,
         tasksPerPage: settings.tasksPerPage,
@@ -78,9 +78,10 @@ export function SystemSettings() {
         warningDays: settings.warningDays,
       };
 
+      // Cast to Json as unknown to ensure compatibility with Supabase
       const { error } = await supabase
         .from('system_settings')
-        .update({ settings: settingsJson })
+        .update({ settings: settingsJson as unknown as Json })
         .eq('id', 'global');
 
       if (error) throw error;

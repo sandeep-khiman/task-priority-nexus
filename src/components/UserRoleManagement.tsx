@@ -20,7 +20,7 @@ import {
 import { CreateUserDialog } from './CreateUserDialog';
 
 export function UserRoleManagement() {
-  const { updateUserRole, profile: currentUserProfile } = useAuth();
+  const { profile: currentUserProfile } = useAuth();
   const { toast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
@@ -98,8 +98,8 @@ export function UserRoleManagement() {
     setUpdatingUserId(userId);
     
     try {
-      // Update the user's role
-      await updateUserRole(userId, role);
+      // Update the user's role in the database directly since Auth context doesn't have this method
+      await userService.updateUserRole(userId, role);
       
       // Update the manager if provided
       if (managerId && (role === 'team-lead' || role === 'employee')) {
@@ -218,7 +218,7 @@ export function UserRoleManagement() {
                         </TableCell>
                         <TableCell className="text-right">
                           <Select 
-                            defaultValue={user.role} 
+                            value={user.role} 
                             onValueChange={(value) => handleRoleChange(user.id, value as UserRole)}
                             disabled={updatingUserId === user.id || user.id === currentUserProfile?.id}
                           >
