@@ -1,109 +1,105 @@
 
-import { useState } from 'react';
-import { format, parseISO, differenceInDays } from 'date-fns';
-import { Task } from '@/types/task';
+import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Task } from '@/types/task';
+import { format } from 'date-fns';
+import { UserRole } from '@/types/user';
+import { useAuth } from '@/contexts/AuthContext';
+import { getPriorityColor, getPriorityLabel } from '@/services/taskUtils';
+import { TaskCompletionToggle } from './TaskCompletionToggle';
+import { Button } from './ui/button';
 import { useTaskContext } from '@/contexts/TaskContext';
-import { cn } from '@/lib/utils';
-import { EditTaskDialog } from './EditTaskDialog';
+import { Calendar, Trash2 } from 'lucide-react';
 
 interface TaskCardProps {
   task: Task;
-  draggable?: boolean;
 }
 
-export function TaskCard({ task, draggable = true }: TaskCardProps) {
-  const { toggleTaskCompletion } = useTaskContext();
-  const [showDetails, setShowDetails] = useState(false);
-
-  const today = new Date();
-  const isDueToday = task.dueDate && 
-    format(parseISO(task.dueDate), 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd');
+function TaskCard({ task }: TaskCardProps) {
+  const { profile } = useAuth();
+  const { deleteTask } = useTaskContext();
   
-  const isOverdue = task.dueDate && 
-    differenceInDays(parseISO(task.dueDate), today) < 0;
-  
-  const isWarning = task.dueDate && 
-    differenceInDays(parseISO(task.dueDate), today) <= 2 && 
-    differenceInDays(parseISO(task.dueDate), today) >= 0;
-
-  const cardClassName = cn(
-    'task-card animate-fade-in',
-    {
-      'overdue': isOverdue,
-      'warning': isWarning && !isOverdue,
-      'opacity-75': task.completed
+  // Check if user has permission to modify this task
+  const canModifyTask = () => {
+    if (!profile) return false;
+    
+    // Admins can modify all tasks
+    if (profile.role === 'admin') return true;
+    
+    // Managers can modify tasks of users who report to them
+    if (profile.role === 'manager') {
+      // In a real implementation, we'd check if the task's assignedToId user
+      // has the current user as their manager
+      return true; // Simplified for now
     }
-  );
-
-  const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
-    if (draggable) {
-      e.dataTransfer.setData('taskId', task.id);
-      e.dataTransfer.effectAllowed = 'move';
+    
+    // Team leads can modify tasks of their team members
+    if (profile.role === 'team-lead') {
+      // In a real implementation, we'd check if the assignedToId is in the team lead's team
+      return true; // Simplified for now
     }
+    
+    // Users can modify their own tasks
+    return task.assignedToId === profile.id || task.createdById === profile.id;
   };
-
+  
+  const priorityColor = getPriorityColor(task);
+  const priorityLabel = getPriorityLabel(task);
+  
   return (
-    <div 
-      className={cardClassName}
-      draggable={draggable && !task.completed} 
-      onDragStart={handleDragStart}
-      onClick={() => setShowDetails(!showDetails)}
-    >
-      <div className="flex items-start gap-2">
-        <div className="text-2xl">{task.icon || '📋'}</div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between">
-            <h3 className="font-medium truncate text-sm">{task.title}</h3>
-            <div className="flex items-center">
-              <EditTaskDialog task={task} />
-              <Checkbox 
-                checked={task.completed} 
-                onCheckedChange={() => {
-                  toggleTaskCompletion(task.id);
-                }}
-                onClick={(e) => e.stopPropagation()}
-                className="ml-2 h-4 w-4"
-              />
+    <Card className="w-full cursor-grab relative">
+      <div 
+        className={`absolute top-0 left-0 right-0 h-1 rounded-t-md ${priorityColor}`}
+        title={priorityLabel}
+      ></div>
+      <CardHeader className="p-3 pb-1">
+        <div className="flex justify-between items-start gap-2">
+          <div className="flex items-center gap-2">
+            <div className="flex-shrink-0">
+              <TaskCompletionToggle task={task} />
             </div>
+            <h3 className={`font-medium text-sm ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
+              {task.title}
+            </h3>
           </div>
-          
-          <div className="flex flex-wrap text-xs text-muted-foreground gap-x-2 mt-1">
-            <span className="flex items-center">
-              <span className="font-medium">By:</span> {task.createdByName}
-            </span>
-            <span className="flex items-center">
-              <span className="font-medium">For:</span> {task.assignedToName}
-            </span>
-          </div>
-          
+          <div className="text-xl">{task.icon || '📝'}</div>
+        </div>
+      </CardHeader>
+      <CardContent className="p-3 pt-1 pb-1">
+        {task.notes && (
+          <p className="text-xs text-muted-foreground mt-1 mb-2">{task.notes}</p>
+        )}
+        <Progress 
+          value={task.progress} 
+          className="h-2 mt-2" 
+          indicatorClassName={task.completed ? "bg-green-500" : undefined}
+        />
+      </CardContent>
+      <CardFooter className="p-3 pt-1 flex flex-wrap items-center text-xs text-muted-foreground gap-2 justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="bg-gray-100 px-2 py-0.5 rounded-full">
+            @{task.assignedToName}
+          </span>
           {task.dueDate && (
-            <div className={cn(
-              "text-xs mt-1",
-              {
-                "text-danger font-medium": isOverdue,
-                "text-warning font-medium": isWarning && !isOverdue,
-                "text-accent font-medium": isDueToday && !isOverdue
-              }
-            )}>
-              {isOverdue ? "Overdue: " : "Due: "}
-              {format(parseISO(task.dueDate), 'MMM d, yyyy')}
-            </div>
+            <span className="flex items-center gap-1">
+              <Calendar size={12} />
+              {format(new Date(task.dueDate), 'MMM d')}
+            </span>
           )}
-          
-          <div className="flex items-center mt-2">
-            <Progress value={task.progress} className="h-1 flex-1" />
-            <span className="text-xs font-medium ml-2">{task.progress}%</span>
-          </div>
         </div>
-      </div>
-      
-      {showDetails && (
-        <div className="mt-3 pt-2 border-t text-sm animate-scale-in">
-          <p className="text-muted-foreground">{task.notes}</p>
-        </div>
-      )}
-    </div>
+        {canModifyTask() && (
+          <Button
+            variant="ghost" 
+            size="icon"
+            className="h-6 w-6 text-muted-foreground hover:text-destructive"
+            onClick={() => deleteTask(task.id)}
+          >
+            <Trash2 size={14} />
+          </Button>
+        )}
+      </CardFooter>
+    </Card>
   );
 }
+
+export default TaskCard;

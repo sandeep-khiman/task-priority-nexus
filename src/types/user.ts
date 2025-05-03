@@ -8,11 +8,11 @@ export interface User {
   email: string;
   name: string;
   role: UserRole;
+  managerId?: string; // ID of the manager this user reports to
   createdAt: string;
   updatedAt: string;
   teamId?: string; // ID of the team the user belongs to (for employees)
   teamMembers?: string[]; // IDs of team members (for team leads)
-  managerId?: string; // ID of the manager this user reports to (for team leads)
 }
 
 export interface AuthState {
@@ -46,4 +46,16 @@ export interface EditTeamPayload {
   leadId: string;
   memberIds: string[];
   managerId: string;
+}
+
+export interface SystemSettings {
+  taskDueDateThresholds: {
+    critical: number; // days until due date for critical priority
+    medium: number; // days until due date for medium priority
+    low: number; // days after medium threshold
+  };
+  tasksPerPage: number;
+  defaultSortOrder: string;
+  markOverdueDays: number;
+  warningDays: number;
 }

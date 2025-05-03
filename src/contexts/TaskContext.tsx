@@ -1,10 +1,13 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Task, Quadrant } from '@/types/task';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext'; 
 import { taskService } from '@/services/taskService';
 import { userService } from '@/services/userService';
-import { User } from '@/types/user';
+import { User, SystemSettings } from '@/types/user';
+import { supabase } from '@/integrations/supabase/client';
+import { determineTaskQuadrant, calculateTaskProgress } from '@/services/taskUtils';
 
 interface TaskFilterState {
   showCompleted: boolean;
@@ -55,6 +58,18 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [filter, setFilter] = useState<TaskFilterState>(initialFilterState);
   const [hideCompleted, setHideCompleted] = useState<boolean>(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [settings, setSettings] = useState<SystemSettings>({
+    taskDueDateThresholds: {
+      critical: 2,
+      medium: 5,
+      low: 5
+    },
+    tasksPerPage: 10,
+    defaultSortOrder: 'duedate-asc',
+    markOverdueDays: 3,
+    warningDays: 2
+  });
+  
   const { toast } = useToast();
   const { user, profile, isAuthenticated } = useAuth();
 
@@ -69,6 +84,33 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [isAuthenticated, user]);
 
+  // Subscribe to task updates
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+    
+    const tasksChannel = supabase
+      .channel('tasks-changes')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'tasks' 
+      }, () => {
+        // Refresh tasks when there are changes
+        fetchTasks();
+      })
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(tasksChannel);
+    };
+  }, [isAuthenticated, user]);
+  
+  // Fetch system settings
+  useEffect(() => {
+    // In a real app, we would fetch settings from the database
+    // For now, we'll use the default settings
+  }, []);
+
   // Fetch tasks from Supabase
   const fetchTasks = async () => {
     if (!user) return;
@@ -76,7 +118,14 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       const fetchedTasks = await taskService.getTasks();
-      setTasks(fetchedTasks);
+      
+      // Update tasks with appropriate quadrants based on due dates
+      const updatedTasks = fetchedTasks.map(task => ({
+        ...task,
+        quadrant: determineTaskQuadrant(task, settings)
+      }));
+      
+      setTasks(updatedTasks);
       setError(null);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch tasks');
@@ -138,9 +187,17 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     setIsLoading(true);
     try {
+      // Determine the appropriate quadrant based on due date
+      const quadrant = taskData.quadrant || 
+        (taskData.dueDate ? determineTaskQuadrant({
+          ...taskData,
+          dueDate: taskData.dueDate
+        } as Task, settings) : 4);
+      
       const newTask = await taskService.createTask({
         ...taskData,
         createdById: user.id,
+        quadrant
       });
       
       setTasks(prevTasks => [newTask, ...prevTasks]);
@@ -259,9 +316,16 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const task = tasks.find(t => t.id === taskId);
       if (!task) return;
       
+      // Calculate new completion state
+      const newCompleted = !task.completed;
+      
+      // Update progress based on completion state
+      const newProgress = calculateTaskProgress(task, newCompleted);
+      
       const updatedTask = await taskService.updateTask({
         id: taskId,
-        completed: !task.completed
+        completed: newCompleted,
+        progress: newProgress
       });
       
       if (updatedTask) {

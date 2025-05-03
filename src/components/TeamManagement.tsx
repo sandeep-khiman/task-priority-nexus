@@ -10,6 +10,9 @@ import { useToast } from '@/components/ui/use-toast';
 import { Label } from '@/components/ui/label';
 import { CheckCircle, XCircle, Users, UserCheck, UserPlus } from 'lucide-react';
 import { CreateTeamDialog } from './CreateTeamDialog';
+import { userService } from '@/services/userService';
+import { teamService } from '@/services/teamService';
+import { supabase } from '@/integrations/supabase/client';
 
 interface TeamManagementProps {
   // Optional props can be added here
@@ -26,221 +29,193 @@ export function TeamManagement({ }: TeamManagementProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedManager, setSelectedManager] = useState<string>('all');
 
-  // Mock initial data load
+  // Load real data from Supabase
   useEffect(() => {
-    // In a real app, this would be an API call
-    const mockUsers = [
-      {
-        id: '1',
-        email: 'admin@example.com',
-        name: 'Admin User',
-        role: 'admin' as UserRole,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      {
-        id: '2',
-        email: 'manager1@example.com',
-        name: 'Manager One',
-        role: 'manager' as UserRole,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      {
-        id: '9',
-        email: 'manager2@example.com',
-        name: 'Manager Two',
-        role: 'manager' as UserRole,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      {
-        id: '3',
-        email: 'teamlead1@example.com',
-        name: 'Team Lead One',
-        role: 'team-lead' as UserRole,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        managerId: '2' // Assigned to Manager One
-      },
-      {
-        id: '4',
-        email: 'teamlead2@example.com',
-        name: 'Team Lead Two',
-        role: 'team-lead' as UserRole,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        managerId: '2' // Assigned to Manager One
-      },
-      {
-        id: '10',
-        email: 'teamlead3@example.com',
-        name: 'Team Lead Three',
-        role: 'team-lead' as UserRole,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        managerId: '9' // Assigned to Manager Two
-      },
-      {
-        id: '5',
-        email: 'employee1@example.com',
-        name: 'Employee One',
-        role: 'employee' as UserRole,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      {
-        id: '6',
-        email: 'employee2@example.com',
-        name: 'Employee Two',
-        role: 'employee' as UserRole,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      {
-        id: '7',
-        email: 'employee3@example.com',
-        name: 'Employee Three',
-        role: 'employee' as UserRole,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      {
-        id: '8',
-        email: 'employee4@example.com',
-        name: 'Employee Four',
-        role: 'employee' as UserRole,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }
-    ];
-
-    // Mock team assignments
-    const initialTeamAssignments: Record<string, string[]> = {
-      '3': ['5', '6'], // Team Lead One has Employee One and Two
-      '4': ['7', '8']  // Team Lead Two has Employee Three and Four
-    };
-
-    // Mock teams
-    const initialTeams: Team[] = [
-      {
-        id: '1',
-        name: 'Development Team',
-        leadId: '3',
-        memberIds: ['5', '6'],
-        manager_id: '2' // Manager One
-      },
-      {
-        id: '2',
-        name: 'QA Team',
-        leadId: '4',
-        memberIds: ['7', '8'],
-        manager_id: '2' // Manager One
-      },
-      {
-        id: '3',
-        name: 'DevOps Team',
-        leadId: '10',
-        memberIds: [],
-        manager_id: '9' // Manager Two
-      }
-    ];
+    fetchData();
     
-    setUsers(mockUsers);
-    setManagers(mockUsers.filter(user => user.role === 'manager'));
-    setTeamLeads(mockUsers.filter(user => user.role === 'team-lead'));
-    setEmployees(mockUsers.filter(user => user.role === 'employee'));
-    setTeams(initialTeams);
-    setTeamAssignments(initialTeamAssignments);
-    setIsLoading(false);
-  }, []);
+    // Set up Supabase realtime subscription
+    const usersChannel = supabase
+      .channel('profiles-changes')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'profiles' 
+      }, () => {
+        // Refresh data when profiles change
+        fetchData();
+      })
+      .subscribe();
+      
+    const teamsChannel = supabase
+      .channel('teams-changes')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'teams' 
+      }, () => {
+        // Refresh data when teams change
+        fetchData();
+      })
+      .subscribe();
+      
+    const membersChannel = supabase
+      .channel('team-members-changes')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'team_members' 
+      }, () => {
+        // Refresh data when team members change
+        fetchData();
+      })
+      .subscribe();
 
-  // Get filtered team leads based on selected manager
-  const filteredTeamLeads = selectedManager === 'all' 
-    ? teamLeads 
-    : teamLeads.filter(tl => tl.managerId === selectedManager);
+    return () => {
+      supabase.removeChannel(usersChannel);
+      supabase.removeChannel(teamsChannel);
+      supabase.removeChannel(membersChannel);
+    };
+  }, []);
+  
+  const fetchData = async () => {
+    setIsLoading(true);
+    
+    try {
+      // Fetch all users with their roles
+      const fetchedUsers = await userService.getUsers();
+      setUsers(fetchedUsers);
+      
+      // Set user categories based on roles
+      setManagers(fetchedUsers.filter(user => user.role === 'manager'));
+      setTeamLeads(fetchedUsers.filter(user => user.role === 'team-lead'));
+      setEmployees(fetchedUsers.filter(user => user.role === 'employee'));
+      
+      // Fetch teams
+      const fetchedTeams = await teamService.getTeams();
+      setTeams(fetchedTeams);
+      
+      // Create team assignments mapping
+      const assignments: Record<string, string[]> = {};
+      
+      fetchedTeams.forEach(team => {
+        if (team.leadId && team.memberIds) {
+          assignments[team.leadId] = team.memberIds;
+        }
+      });
+      
+      setTeamAssignments(assignments);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load team data. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Function to create a new team
-  const handleCreateTeam = (teamData: CreateTeamPayload) => {
-    const newTeam: Team = {
-      id: `${teams.length + 1}`,
-      name: teamData.name,
-      leadId: teamData.leadId,
-      memberIds: teamData.memberIds,
-      manager_id: teamData.managerId
-    };
-    
-    setTeams(prev => [...prev, newTeam]);
-    
-    // Update team assignments
-    setTeamAssignments(prev => ({
-      ...prev,
-      [teamData.leadId]: teamData.memberIds
-    }));
-
-    // Update team lead with manager ID
-    setTeamLeads(prev => prev.map(tl => 
-      tl.id === teamData.leadId 
-        ? { ...tl, managerId: teamData.managerId } 
-        : tl
-    ));
+  const handleCreateTeam = async (teamData: CreateTeamPayload) => {
+    try {
+      const newTeam = await teamService.createTeam(teamData);
+      
+      toast({
+        title: "Team created",
+        description: `Team "${teamData.name}" has been created successfully`
+      });
+      
+      // Refresh data
+      fetchData();
+    } catch (error) {
+      console.error("Error creating team:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create team. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   // Function to handle adding an employee to a team lead's team
-  const handleAddToTeam = (teamLeadId: string, employeeId: string) => {
-    setTeamAssignments(prev => {
-      const teamLeadAssignments = prev[teamLeadId] || [];
-      if (!teamLeadAssignments.includes(employeeId)) {
-        return {
-          ...prev,
-          [teamLeadId]: [...teamLeadAssignments, employeeId]
-        };
+  const handleAddToTeam = async (teamLeadId: string, employeeId: string) => {
+    try {
+      // Find the team where this user is a lead
+      const team = teams.find(t => t.leadId === teamLeadId);
+      
+      if (!team) {
+        toast({
+          title: "Error",
+          description: "Team not found. Please refresh and try again.",
+          variant: "destructive"
+        });
+        return;
       }
-      return prev;
-    });
-
-    // Also update the corresponding team if it exists
-    setTeams(prev => prev.map(team => {
-      if (team.leadId === teamLeadId && team.memberIds) {
-        return {
-          ...team,
-          memberIds: [...team.memberIds, employeeId]
-        };
-      }
-      return team;
-    }));
-
-    toast({
-      title: 'Team Updated',
-      description: 'Employee has been added to the team successfully.',
-    });
+      
+      // Update team with new member
+      const updatedTeam = {
+        ...team,
+        memberIds: [...(team.memberIds || []), employeeId]
+      };
+      
+      await teamService.updateTeam(updatedTeam);
+      
+      toast({
+        title: "Team Updated",
+        description: "Employee has been added to the team successfully.",
+      });
+      
+      // Refresh data
+      fetchData();
+    } catch (error) {
+      console.error("Error adding employee to team:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update team. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   // Function to handle removing an employee from a team lead's team
-  const handleRemoveFromTeam = (teamLeadId: string, employeeId: string) => {
-    setTeamAssignments(prev => {
-      const teamLeadAssignments = prev[teamLeadId] || [];
-      return {
-        ...prev,
-        [teamLeadId]: teamLeadAssignments.filter(id => id !== employeeId)
-      };
-    });
-
-    // Also update the corresponding team if it exists
-    setTeams(prev => prev.map(team => {
-      if (team.leadId === teamLeadId && team.memberIds) {
-        return {
-          ...team,
-          memberIds: team.memberIds.filter(id => id !== employeeId)
-        };
+  const handleRemoveFromTeam = async (teamLeadId: string, employeeId: string) => {
+    try {
+      // Find the team where this user is a lead
+      const team = teams.find(t => t.leadId === teamLeadId);
+      
+      if (!team) {
+        toast({
+          title: "Error",
+          description: "Team not found. Please refresh and try again.",
+          variant: "destructive"
+        });
+        return;
       }
-      return team;
-    }));
-
-    toast({
-      title: 'Team Updated',
-      description: 'Employee has been removed from the team.',
-    });
+      
+      // Update team with member removed
+      const updatedTeam = {
+        ...team,
+        memberIds: (team.memberIds || []).filter(id => id !== employeeId)
+      };
+      
+      await teamService.updateTeam(updatedTeam);
+      
+      toast({
+        title: "Team Updated",
+        description: "Employee has been removed from the team.",
+      });
+      
+      // Refresh data
+      fetchData();
+    } catch (error) {
+      console.error("Error removing employee from team:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update team. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   // Check if an employee is assigned to a team lead
@@ -248,23 +223,16 @@ export function TeamManagement({ }: TeamManagementProps) {
     return (teamAssignments[teamLeadId] || []).includes(employeeId);
   };
 
-  // Get the name of a team lead by ID
-  const getTeamLeadName = (teamLeadId: string) => {
-    const teamLead = users.find(user => user.id === teamLeadId);
-    return teamLead ? teamLead.name : 'Unknown';
+  // Get the name of a user by ID
+  const getUserName = (userId: string) => {
+    const user = users.find(user => user.id === userId);
+    return user ? user.name : 'Unknown';
   };
 
-  // Get the name of a manager by ID
-  const getManagerName = (managerId: string) => {
-    const manager = users.find(user => user.id === managerId);
-    return manager ? manager.name : 'Unknown';
-  };
-
-  // Get the name of an employee by ID
-  const getEmployeeName = (employeeId: string) => {
-    const employee = users.find(user => user.id === employeeId);
-    return employee ? employee.name : 'Unknown';
-  };
+  // Get filtered team leads based on selected manager
+  const filteredTeamLeads = selectedManager === 'all' 
+    ? teamLeads 
+    : teamLeads.filter(tl => tl.managerId === selectedManager);
 
   return (
     <Card>
@@ -326,13 +294,13 @@ export function TeamManagement({ }: TeamManagementProps) {
                       .map(team => (
                       <TableRow key={team.id}>
                         <TableCell className="font-medium">{team.name}</TableCell>
-                        <TableCell>{getManagerName(team.manager_id || '')}</TableCell>
-                        <TableCell>{getTeamLeadName(team.leadId || '')}</TableCell>
+                        <TableCell>{getUserName(team.manager_id || '')}</TableCell>
+                        <TableCell>{getUserName(team.leadId || '')}</TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
                             {team.memberIds?.map(memberId => (
                               <Badge key={memberId} variant="secondary">
-                                {getEmployeeName(memberId)}
+                                {getUserName(memberId)}
                               </Badge>
                             ))}
                             {!team.memberIds || team.memberIds.length === 0 && (
@@ -364,7 +332,7 @@ export function TeamManagement({ }: TeamManagementProps) {
                     </Badge>
                     {teamLead.managerId && (
                       <Badge className="ml-2 bg-purple-500 hover:bg-purple-600">
-                        Manager: {getManagerName(teamLead.managerId)}
+                        Manager: {getUserName(teamLead.managerId)}
                       </Badge>
                     )}
                   </h3>
@@ -422,7 +390,7 @@ export function TeamManagement({ }: TeamManagementProps) {
                       <div className="flex flex-wrap gap-2">
                         {teamAssignments[teamLead.id]?.map(employeeId => (
                           <Badge key={employeeId} variant="secondary" className="px-3 py-1.5">
-                            {getEmployeeName(employeeId)}
+                            {getUserName(employeeId)}
                           </Badge>
                         ))}
                       </div>

@@ -20,6 +20,7 @@ export const userService = {
       email: profile.email,
       name: profile.name,
       role: profile.role as UserRole,
+      managerId: profile.manager_id,
       createdAt: profile.created_at,
       updatedAt: profile.updated_at
     })) || [];
@@ -45,6 +46,7 @@ export const userService = {
       email: data.email,
       name: data.name,
       role: data.role as UserRole,
+      managerId: data.manager_id,
       createdAt: data.created_at,
       updatedAt: data.updated_at
     };
@@ -68,6 +70,7 @@ export const userService = {
       email: profile.email,
       name: profile.name,
       role: profile.role as UserRole,
+      managerId: profile.manager_id,
       createdAt: profile.created_at,
       updatedAt: profile.updated_at
     })) || [];
@@ -82,6 +85,19 @@ export const userService = {
 
     if (error) {
       console.error('Error updating user role:', error);
+      throw error;
+    }
+  },
+  
+  // Update user manager
+  async updateUserManager(userId: string, managerId: string | null): Promise<void> {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ manager_id: managerId })
+      .eq('id', userId);
+
+    if (error) {
+      console.error('Error updating user manager:', error);
       throw error;
     }
   },
@@ -126,6 +142,7 @@ export const userService = {
       email: member.profiles.email,
       name: member.profiles.name,
       role: member.profiles.role as UserRole,
+      managerId: member.profiles.manager_id,
       createdAt: member.profiles.created_at,
       updatedAt: member.profiles.updated_at
     }));
