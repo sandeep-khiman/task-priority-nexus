@@ -9,9 +9,10 @@ import { getPriorityColor, getPriorityLabel } from '@/services/taskUtils';
 import { TaskCompletionToggle } from './TaskCompletionToggle';
 import { Button } from './ui/button';
 import { useTaskContext } from '@/contexts/TaskContext';
-import { Calendar, Trash2 } from 'lucide-react';
+import { Calendar, Trash2, UserCheck } from 'lucide-react';
 import { EditTaskDialog } from './EditTaskDialog';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { Badge } from './ui/badge';
 
 interface TaskCardProps {
   task: Task;
@@ -21,6 +22,7 @@ function TaskCard({ task }: TaskCardProps) {
   const { profile } = useAuth();
   const { deleteTask } = useTaskContext();
   const [isDragging, setIsDragging] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
   
   // Check if user has permission to modify this task
   const canModifyTask = () => {
@@ -31,14 +33,11 @@ function TaskCard({ task }: TaskCardProps) {
     
     // Managers can modify tasks of users who report to them
     if (profile.role === 'manager') {
-      // In a real implementation, we'd check if the task's assignedToId user
-      // has the current user as their manager
       return true; // Simplified for now
     }
     
     // Team leads can modify tasks of their team members
     if (profile.role === 'team-lead') {
-      // In a real implementation, we'd check if the assignedToId is in the team lead's team
       return true; // Simplified for now
     }
     
@@ -55,16 +54,22 @@ function TaskCard({ task }: TaskCardProps) {
     setIsDragging(true);
     
     // Create a ghost image that's not visible
-    const ghostElement = document.createElement('div');
-    ghostElement.style.position = 'absolute';
-    ghostElement.style.top = '-1000px';
-    document.body.appendChild(ghostElement);
-    e.dataTransfer.setDragImage(ghostElement, 0, 0);
-    
-    // Remove the ghost element after drag starts
-    setTimeout(() => {
-      document.body.removeChild(ghostElement);
-    }, 0);
+    if (cardRef.current) {
+      const rect = cardRef.current.getBoundingClientRect();
+      
+      // Use a transparent image for drag ghost to prevent text selection issues
+      const dragGhost = document.createElement('div');
+      dragGhost.style.position = 'absolute';
+      dragGhost.style.top = '-1000px';
+      dragGhost.style.opacity = '0';
+      document.body.appendChild(dragGhost);
+      
+      e.dataTransfer.setDragImage(dragGhost, 0, 0);
+      
+      setTimeout(() => {
+        document.body.removeChild(dragGhost);
+      }, 0);
+    }
   };
 
   const handleDragEnd = () => {
@@ -73,8 +78,9 @@ function TaskCard({ task }: TaskCardProps) {
   
   return (
     <Card 
-      className={`w-full cursor-grab relative ${isDragging ? 'opacity-50' : ''}`}
-      draggable="true"
+      ref={cardRef}
+      className={`w-full cursor-grab relative ${isDragging ? 'opacity-50' : ''} text-sm`}
+      draggable={true}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
@@ -82,36 +88,40 @@ function TaskCard({ task }: TaskCardProps) {
         className={`absolute top-0 left-0 right-0 h-1 rounded-t-md ${priorityColor}`}
         title={priorityLabel}
       ></div>
-      <CardHeader className="p-3 pb-1">
+      <CardHeader className="p-2 pb-1">
         <div className="flex justify-between items-start gap-2">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <div className="flex-shrink-0">
               <TaskCompletionToggle task={task} />
             </div>
-            <h3 className={`font-medium text-sm ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
+            <h3 className={`font-medium text-xs ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
               {task.title}
             </h3>
           </div>
-          <div className="text-xl">{task.icon || '📝'}</div>
+          <div className="text-base">{task.icon || '📝'}</div>
         </div>
       </CardHeader>
-      <CardContent className="p-3 pt-1 pb-1">
+      <CardContent className="p-2 pt-0 pb-1">
+        {task.assignedToName && (
+          <Badge variant="outline" className="mb-1 text-xs flex items-center gap-1">
+            <UserCheck size={10} />
+            {task.assignedToName}
+          </Badge>
+        )}
+        
         {task.notes && (
-          <p className="text-xs text-muted-foreground mt-1 mb-2">{task.notes}</p>
+          <p className="text-xs text-muted-foreground mt-1 mb-1 line-clamp-2">{task.notes}</p>
         )}
         <Progress 
           value={task.progress} 
-          className="h-2 mt-2" 
+          className="h-1 mt-1" 
         />
       </CardContent>
-      <CardFooter className="p-3 pt-1 flex flex-wrap items-center text-xs text-muted-foreground gap-2 justify-between">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="bg-gray-100 px-2 py-0.5 rounded-full">
-            @{task.assignedToName}
-          </span>
+      <CardFooter className="p-2 pt-1 flex items-center text-xs text-muted-foreground gap-1 justify-between">
+        <div className="flex items-center gap-1">
           {task.dueDate && (
             <span className="flex items-center gap-1">
-              <Calendar size={12} />
+              <Calendar size={10} />
               {format(new Date(task.dueDate), 'MMM d')}
             </span>
           )}
@@ -128,7 +138,7 @@ function TaskCard({ task }: TaskCardProps) {
                 deleteTask(task.id);
               }}
             >
-              <Trash2 size={14} />
+              <Trash2 size={12} />
             </Button>
           </div>
         )}

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -48,10 +49,10 @@ export function CreateTeamDialog({ users, teamLeads, managers, onCreateTeam }: C
   }, [open, profile]);
 
   const handleCreateTeam = () => {
-    if (!teamName || !selectedManagerId || !selectedLeadId) {
+    if (!teamName || !selectedManagerId) {
       toast({
         title: "Missing information",
-        description: "Please provide a team name, select a manager and a team lead",
+        description: "Please provide a team name and select a manager",
         variant: "destructive"
       });
       return;
@@ -60,7 +61,7 @@ export function CreateTeamDialog({ users, teamLeads, managers, onCreateTeam }: C
     const newTeam: CreateTeamPayload = {
       name: teamName,
       managerId: selectedManagerId,
-      leadId: selectedLeadId,
+      leadId: selectedLeadId || undefined, // Make leadId optional
       memberIds: selectedMemberIds
     };
 
@@ -137,7 +138,7 @@ export function CreateTeamDialog({ users, teamLeads, managers, onCreateTeam }: C
           )}
           
           <div className="grid gap-2">
-            <Label>Team Lead</Label>
+            <Label>Team Lead (Optional)</Label>
             <Select 
               value={selectedLeadId} 
               onValueChange={setSelectedLeadId}
@@ -146,6 +147,7 @@ export function CreateTeamDialog({ users, teamLeads, managers, onCreateTeam }: C
                 <SelectValue placeholder="Select team lead" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="">None</SelectItem>
                 {teamLeads.map((lead) => (
                   <SelectItem key={lead.id} value={lead.id}>
                     {lead.name}
@@ -186,7 +188,7 @@ export function CreateTeamDialog({ users, teamLeads, managers, onCreateTeam }: C
           </Button>
           <Button 
             onClick={handleCreateTeam} 
-            disabled={!teamName || !selectedManagerId || !selectedLeadId}
+            disabled={!teamName || !selectedManagerId}
           >
             Create Team
           </Button>

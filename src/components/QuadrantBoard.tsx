@@ -9,8 +9,11 @@ import {
   Target,
   Clock,
   HelpCircle,
-  RotateCcw
+  RotateCcw,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
+import { Button } from './ui/button';
 
 const quadrantLabels: Record<Quadrant, string> = {
   1: 'Urgent & Important',
@@ -21,11 +24,11 @@ const quadrantLabels: Record<Quadrant, string> = {
 };
 
 const quadrantIcons: Record<Quadrant, React.ReactNode> = {
-  1: <AlertTriangle className="w-5 h-5 text-red-500" />,
-  2: <Target className="w-5 h-5 text-blue-500" />,
-  3: <Clock className="w-5 h-5 text-amber-500" />,
-  4: <HelpCircle className="w-5 h-5 text-gray-500" />,
-  5: <RotateCcw className="w-5 h-5 text-green-500" />
+  1: <AlertTriangle className="w-4 h-4 text-red-500" />,
+  2: <Target className="w-4 h-4 text-blue-500" />,
+  3: <Clock className="w-4 h-4 text-amber-500" />,
+  4: <HelpCircle className="w-4 h-4 text-gray-500" />,
+  5: <RotateCcw className="w-4 h-4 text-green-500" />
 };
 
 interface QuadrantProps {
@@ -36,6 +39,7 @@ interface QuadrantProps {
 function QuadrantColumn({ quadrant, tasks }: QuadrantProps) {
   const { moveTask } = useTaskContext();
   const [isDragOver, setIsDragOver] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -56,33 +60,57 @@ function QuadrantColumn({ quadrant, tasks }: QuadrantProps) {
     setIsDragOver(false);
   };
 
+  const displayTasks = isExpanded ? tasks : tasks.slice(0, 5);
+  const hasMoreTasks = tasks.length > 5;
+
   return (
-    <div className="flex flex-col h-full bg-white p-4 rounded-lg border shadow-sm">
-      <h2 className="font-medium mb-3 flex items-center">
-        <span className="mr-2">{quadrantIcons[quadrant]}</span>
+    <div className="flex flex-col h-full bg-white p-2 rounded-lg border shadow-sm">
+      <h2 className="font-medium mb-2 flex items-center text-sm">
+        <span className="mr-1">{quadrantIcons[quadrant]}</span>
         {quadrantLabels[quadrant]}
       </h2>
       <div 
         className={cn(
-          'quadrant flex-1 min-h-[400px] overflow-y-auto rounded-md p-2 bg-gray-50',
-          { 'bg-blue-50 border-2 border-dashed border-blue-300': isDragOver }
+          'quadrant flex-1 overflow-y-auto rounded-md p-1 bg-gray-50',
+          { 'bg-blue-50 border-2 border-dashed border-blue-300': isDragOver },
+          { 'max-h-[400px]': isExpanded, 'max-h-[300px]': !isExpanded }
         )}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <div className="space-y-3">
-          {tasks.length === 0 ? (
-            <div className="text-center text-muted-foreground py-4">
+        <div className="space-y-2">
+          {displayTasks.length === 0 ? (
+            <div className="text-center text-muted-foreground py-2 text-xs">
               No tasks in this quadrant
             </div>
           ) : (
-            tasks.map(task => (
+            displayTasks.map(task => (
               <TaskCard key={task.id} task={task} />
             ))
           )}
         </div>
       </div>
+      {hasMoreTasks && (
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="mt-1 text-xs flex items-center justify-center py-0 h-6"
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
+          {isExpanded ? (
+            <>
+              <ChevronUp className="h-3 w-3 mr-1" />
+              Show Less
+            </>
+          ) : (
+            <>
+              <ChevronDown className="h-3 w-3 mr-1" />
+              Show All ({tasks.length})
+            </>
+          )}
+        </Button>
+      )}
     </div>
   );
 }
@@ -97,9 +125,9 @@ export default function QuadrantBoard() {
   const routineTasks = filteredTasks.filter(task => task.quadrant === 5);
   
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Eisenhower Matrix - 2x2 Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <QuadrantColumn quadrant={1} tasks={quadrant1Tasks} />
         <QuadrantColumn quadrant={2} tasks={quadrant2Tasks} />
         <QuadrantColumn quadrant={3} tasks={quadrant3Tasks} />
@@ -107,7 +135,7 @@ export default function QuadrantBoard() {
       </div>
       
       {/* Routine Tasks Section */}
-      <div className="mt-6">
+      <div className="mt-3">
         <QuadrantColumn quadrant={5} tasks={routineTasks} />
       </div>
     </div>
