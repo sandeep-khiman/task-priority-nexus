@@ -9,6 +9,7 @@ export interface User {
   name: string;
   role: UserRole;
   managerId?: string; // ID of the manager this user reports to
+  manager_id?: string; // Match DB schema for Supabase
   createdAt: string;
   updatedAt: string;
   teamId?: string; // ID of the team the user belongs to (for employees)
@@ -26,7 +27,8 @@ export interface AuthState {
 export interface Team {
   id: string;
   name: string;
-  manager_id?: string; // Keep as manager_id to match DB schema
+  manager_id?: string; // Match DB schema
+  managerId?: string;  // For easier component access
   leadId?: string;
   memberIds?: string[];
   created_at?: string; // Match DB schema
@@ -38,6 +40,7 @@ export interface CreateTeamPayload {
   leadId: string;
   memberIds: string[];
   managerId: string;
+  manager_id?: string; // Match DB schema
 }
 
 export interface EditTeamPayload {
@@ -46,6 +49,7 @@ export interface EditTeamPayload {
   leadId: string;
   memberIds: string[];
   managerId: string;
+  manager_id?: string; // Match DB schema
 }
 
 export interface SystemSettings {

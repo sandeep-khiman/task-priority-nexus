@@ -119,7 +119,10 @@ export function TeamManagement({ }: TeamManagementProps) {
   // Function to create a new team
   const handleCreateTeam = async (teamData: CreateTeamPayload) => {
     try {
-      const newTeam = await teamService.createTeam(teamData);
+      const newTeam = await teamService.createTeam({
+        ...teamData,
+        manager_id: teamData.managerId  // Ensure the manager_id is set
+      });
       
       toast({
         title: "Team created",
@@ -156,7 +159,8 @@ export function TeamManagement({ }: TeamManagementProps) {
       // Update team with new member
       const updatedTeam = {
         ...team,
-        memberIds: [...(team.memberIds || []), employeeId]
+        memberIds: [...(team.memberIds || []), employeeId],
+        managerId: team.manager_id  // Use manager_id for compatibility
       };
       
       await teamService.updateTeam(updatedTeam);
@@ -196,7 +200,8 @@ export function TeamManagement({ }: TeamManagementProps) {
       // Update team with member removed
       const updatedTeam = {
         ...team,
-        memberIds: (team.memberIds || []).filter(id => id !== employeeId)
+        memberIds: (team.memberIds || []).filter(id => id !== employeeId),
+        managerId: team.manager_id  // Use manager_id for compatibility
       };
       
       await teamService.updateTeam(updatedTeam);

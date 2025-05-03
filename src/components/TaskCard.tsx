@@ -72,7 +72,7 @@ function TaskCard({ task }: TaskCardProps) {
         <Progress 
           value={task.progress} 
           className="h-2 mt-2" 
-          indicatorClassName={task.completed ? "bg-green-500" : undefined}
+          // Remove the indicatorClassName prop as it's not supported
         />
       </CardContent>
       <CardFooter className="p-3 pt-1 flex flex-wrap items-center text-xs text-muted-foreground gap-2 justify-between">

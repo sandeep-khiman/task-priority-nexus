@@ -170,7 +170,7 @@ export const teamService = {
       .from('teams')
       .update({
         name: team.name,
-        manager_id: team.managerId,
+        manager_id: team.managerId || team.manager_id,
         updated_at: new Date().toISOString()
       })
       .eq('id', team.id);
@@ -206,7 +206,7 @@ export const teamService = {
     }
 
     // Then add all team members
-    if (team.memberIds.length > 0) {
+    if (team.memberIds && team.memberIds.length > 0) {
       const memberRecords = team.memberIds.map(userId => ({
         team_id: team.id,
         user_id: userId,
@@ -228,7 +228,7 @@ export const teamService = {
       name: team.name,
       leadId: team.leadId,
       memberIds: team.memberIds,
-      manager_id: team.managerId
+      manager_id: team.managerId || team.manager_id
     };
   },
 

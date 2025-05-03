@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { Task, Quadrant } from '@/types/task';
-import { TaskCard } from './TaskCard';
+import TaskCard from './TaskCard';
 import { useTaskContext } from '@/contexts/TaskContext';
 import { cn } from '@/lib/utils';
 import { 

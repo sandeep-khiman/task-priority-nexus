@@ -21,6 +21,7 @@ export const userService = {
       name: profile.name,
       role: profile.role as UserRole,
       managerId: profile.manager_id,
+      manager_id: profile.manager_id, // Include both formats
       createdAt: profile.created_at,
       updatedAt: profile.updated_at
     })) || [];
@@ -47,6 +48,7 @@ export const userService = {
       name: data.name,
       role: data.role as UserRole,
       managerId: data.manager_id,
+      manager_id: data.manager_id, // Include both formats
       createdAt: data.created_at,
       updatedAt: data.updated_at
     };
@@ -71,6 +73,7 @@ export const userService = {
       name: profile.name,
       role: profile.role as UserRole,
       managerId: profile.manager_id,
+      manager_id: profile.manager_id, // Include both formats
       createdAt: profile.created_at,
       updatedAt: profile.updated_at
     })) || [];
@@ -143,6 +146,7 @@ export const userService = {
       name: member.profiles.name,
       role: member.profiles.role as UserRole,
       managerId: member.profiles.manager_id,
+      manager_id: member.profiles.manager_id, // Include both formats
       createdAt: member.profiles.created_at,
       updatedAt: member.profiles.updated_at
     }));

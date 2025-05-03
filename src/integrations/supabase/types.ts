@@ -14,6 +14,7 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          manager_id: string | null
           name: string
           role: string
           updated_at: string
@@ -22,6 +23,7 @@ export type Database = {
           created_at?: string
           email: string
           id: string
+          manager_id?: string | null
           name: string
           role: string
           updated_at?: string
@@ -30,9 +32,39 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
+          manager_id?: string | null
           name?: string
           role?: string
           updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      system_settings: {
+        Row: {
+          created_at: string | null
+          id: string
+          settings: Json
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id: string
+          settings: Json
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          settings?: Json
+          updated_at?: string | null
         }
         Relationships: []
       }
