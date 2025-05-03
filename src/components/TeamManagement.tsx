@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { UserRole, User, Team, CreateTeamPayload } from '@/types/user';
+import { UserRole, User, Team, CreateTeamPayload, EditTeamPayload } from '@/types/user';
 import { useToast } from '@/components/ui/use-toast';
 import { Label } from '@/components/ui/label';
 import { CheckCircle, XCircle, Users, UserCheck, UserPlus } from 'lucide-react';
@@ -157,10 +157,14 @@ export function TeamManagement({ }: TeamManagementProps) {
       }
       
       // Update team with new member
-      const updatedTeam = {
+      const updatedTeam: EditTeamPayload = {
         ...team,
+        id: team.id,
+        name: team.name,
+        leadId: team.leadId || '', // Provide a default value if it's undefined
         memberIds: [...(team.memberIds || []), employeeId],
-        managerId: team.manager_id  // Use manager_id for compatibility
+        managerId: team.manager_id || '',  // Use manager_id for compatibility
+        manager_id: team.manager_id
       };
       
       await teamService.updateTeam(updatedTeam);
@@ -198,10 +202,14 @@ export function TeamManagement({ }: TeamManagementProps) {
       }
       
       // Update team with member removed
-      const updatedTeam = {
+      const updatedTeam: EditTeamPayload = {
         ...team,
+        id: team.id,
+        name: team.name,
+        leadId: team.leadId || '', // Provide a default value if it's undefined
         memberIds: (team.memberIds || []).filter(id => id !== employeeId),
-        managerId: team.manager_id  // Use manager_id for compatibility
+        managerId: team.manager_id || '',  // Use manager_id for compatibility
+        manager_id: team.manager_id
       };
       
       await teamService.updateTeam(updatedTeam);

@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import type { SystemSettings as SystemSettingsType } from '@/types/user';
+import type { SystemSettings as SystemSettingsType, SystemSettingsJson } from '@/types/user';
 
 export function SystemSettings() {
   const { toast } = useToast();
@@ -40,7 +40,19 @@ export function SystemSettings() {
       if (error) throw error;
 
       if (data) {
-        setSettings(data.settings as SystemSettingsType);
+        // Use type assertion to safely convert Json to our SystemSettingsType
+        const settingsData = data.settings as SystemSettingsJson;
+        setSettings({
+          taskDueDateThresholds: {
+            critical: settingsData.taskDueDateThresholds?.critical ?? 2,
+            medium: settingsData.taskDueDateThresholds?.medium ?? 5,
+            low: settingsData.taskDueDateThresholds?.low ?? 5,
+          },
+          tasksPerPage: settingsData.tasksPerPage ?? 10,
+          defaultSortOrder: settingsData.defaultSortOrder ?? 'duedate-asc',
+          markOverdueDays: settingsData.markOverdueDays ?? 3,
+          warningDays: settingsData.warningDays ?? 2,
+        });
       }
     } catch (error) {
       console.error('Error fetching system settings:', error);
@@ -57,9 +69,18 @@ export function SystemSettings() {
   const saveSettings = async () => {
     setIsSaving(true);
     try {
+      // Convert our typed settings to a plain object that Supabase can store as Json
+      const settingsJson: SystemSettingsJson = {
+        taskDueDateThresholds: settings.taskDueDateThresholds,
+        tasksPerPage: settings.tasksPerPage,
+        defaultSortOrder: settings.defaultSortOrder,
+        markOverdueDays: settings.markOverdueDays,
+        warningDays: settings.warningDays,
+      };
+
       const { error } = await supabase
         .from('system_settings')
-        .update({ settings })
+        .update({ settings: settingsJson })
         .eq('id', 'global');
 
       if (error) throw error;
@@ -96,7 +117,7 @@ export function SystemSettings() {
     } else {
       setSettings({
         ...settings,
-        [field]: typeof value === 'string' ? parseInt(value) || 0 : value,
+        [field as keyof SystemSettingsType]: typeof value === 'string' ? parseInt(value) || 0 : value,
       });
     }
   };
@@ -196,7 +217,7 @@ export function SystemSettings() {
                 step="5"
                 value={settings.tasksPerPage}
                 onChange={(e) =>
-                  handleInputChange('', 'tasksPerPage', e.target.value)
+                  handleInputChange('tasksPerPage', 'tasksPerPage', e.target.value)
                 }
               />
             </div>
@@ -209,7 +230,7 @@ export function SystemSettings() {
                 max="30"
                 value={settings.markOverdueDays}
                 onChange={(e) =>
-                  handleInputChange('', 'markOverdueDays', e.target.value)
+                  handleInputChange('markOverdueDays', 'markOverdueDays', e.target.value)
                 }
               />
               <p className="text-xs text-muted-foreground">
@@ -231,7 +252,7 @@ export function SystemSettings() {
                 max="30"
                 value={settings.warningDays}
                 onChange={(e) =>
-                  handleInputChange('', 'warningDays', e.target.value)
+                  handleInputChange('warningDays', 'warningDays', e.target.value)
                 }
               />
               <p className="text-xs text-muted-foreground">

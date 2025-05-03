@@ -46,7 +46,7 @@ export interface CreateTeamPayload {
 export interface EditTeamPayload {
   id: string;
   name: string;
-  leadId: string;
+  leadId?: string; // Making this optional to match usage
   memberIds: string[];
   managerId: string;
   manager_id?: string; // Match DB schema
@@ -57,6 +57,19 @@ export interface SystemSettings {
     critical: number; // days until due date for critical priority
     medium: number; // days until due date for medium priority
     low: number; // days after medium threshold
+  };
+  tasksPerPage: number;
+  defaultSortOrder: string;
+  markOverdueDays: number;
+  warningDays: number;
+}
+
+// Add this interface to help with type conversions between Supabase Json and our app types
+export interface SystemSettingsJson {
+  taskDueDateThresholds: {
+    critical: number;
+    medium: number;
+    low: number;
   };
   tasksPerPage: number;
   defaultSortOrder: string;
