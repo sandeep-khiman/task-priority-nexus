@@ -37,7 +37,7 @@ export interface Team {
 
 export interface CreateTeamPayload {
   name: string;
-  leadId: string;
+  leadId?: string;
   memberIds: string[];
   managerId: string;
   manager_id?: string; // Match DB schema

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +19,7 @@ import {
   DialogTitle 
 } from '@/components/ui/dialog';
 import { CreateUserDialog } from './CreateUserDialog';
+import { ChangeManagerDialog } from './ChangeManagerDialog';
 
 export function UserRoleManagement() {
   const { profile: currentUserProfile } = useAuth();
@@ -191,7 +193,7 @@ export function UserRoleManagement() {
                   <TableHead>Email</TableHead>
                   <TableHead>Current Role</TableHead>
                   <TableHead>Manager</TableHead>
-                  <TableHead className="text-right">Change Role</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -217,21 +219,32 @@ export function UserRoleManagement() {
                           }
                         </TableCell>
                         <TableCell className="text-right">
-                          <Select 
-                            value={user.role} 
-                            onValueChange={(value) => handleRoleChange(user.id, value as UserRole)}
-                            disabled={updatingUserId === user.id || user.id === currentUserProfile?.id}
-                          >
-                            <SelectTrigger className="w-40">
-                              <SelectValue placeholder="Select role" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="admin">Admin</SelectItem>
-                              <SelectItem value="manager">Manager</SelectItem>
-                              <SelectItem value="team-lead">Team Lead</SelectItem>
-                              <SelectItem value="employee">Employee</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <div className="flex flex-col sm:flex-row items-end sm:items-center justify-end gap-2">
+                            <Select 
+                              value={user.role} 
+                              onValueChange={(value) => handleRoleChange(user.id, value as UserRole)}
+                              disabled={updatingUserId === user.id || user.id === currentUserProfile?.id}
+                            >
+                              <SelectTrigger className="w-40">
+                                <SelectValue placeholder="Select role" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="admin">Admin</SelectItem>
+                                <SelectItem value="manager">Manager</SelectItem>
+                                <SelectItem value="team-lead">Team Lead</SelectItem>
+                                <SelectItem value="employee">Employee</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            
+                            {/* Add the Change Manager component */}
+                            {(user.role === 'team-lead' || user.role === 'employee') && 
+                             user.id !== currentUserProfile?.id && (
+                              <ChangeManagerDialog 
+                                user={user} 
+                                onManagerChanged={fetchUsers} 
+                              />
+                            )}
+                          </div>
                           {user.id === currentUserProfile?.id && (
                             <div className="text-xs text-muted-foreground mt-1">
                               Cannot change your own role

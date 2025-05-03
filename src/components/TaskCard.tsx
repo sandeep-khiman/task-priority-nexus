@@ -11,6 +11,7 @@ import { Button } from './ui/button';
 import { useTaskContext } from '@/contexts/TaskContext';
 import { Calendar, Trash2 } from 'lucide-react';
 import { EditTaskDialog } from './EditTaskDialog';
+import { useState } from 'react';
 
 interface TaskCardProps {
   task: Task;
@@ -19,6 +20,7 @@ interface TaskCardProps {
 function TaskCard({ task }: TaskCardProps) {
   const { profile } = useAuth();
   const { deleteTask } = useTaskContext();
+  const [isDragging, setIsDragging] = useState(false);
   
   // Check if user has permission to modify this task
   const canModifyTask = () => {
@@ -46,9 +48,36 @@ function TaskCard({ task }: TaskCardProps) {
   
   const priorityColor = getPriorityColor(task);
   const priorityLabel = getPriorityLabel(task);
+
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
+    e.dataTransfer.setData('taskId', task.id);
+    e.dataTransfer.effectAllowed = 'move';
+    setIsDragging(true);
+    
+    // Create a ghost image that's not visible
+    const ghostElement = document.createElement('div');
+    ghostElement.style.position = 'absolute';
+    ghostElement.style.top = '-1000px';
+    document.body.appendChild(ghostElement);
+    e.dataTransfer.setDragImage(ghostElement, 0, 0);
+    
+    // Remove the ghost element after drag starts
+    setTimeout(() => {
+      document.body.removeChild(ghostElement);
+    }, 0);
+  };
+
+  const handleDragEnd = () => {
+    setIsDragging(false);
+  };
   
   return (
-    <Card className="w-full cursor-grab relative">
+    <Card 
+      className={`w-full cursor-grab relative ${isDragging ? 'opacity-50' : ''}`}
+      draggable="true"
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
       <div 
         className={`absolute top-0 left-0 right-0 h-1 rounded-t-md ${priorityColor}`}
         title={priorityLabel}

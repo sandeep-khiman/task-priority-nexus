@@ -39,6 +39,7 @@ function QuadrantColumn({ quadrant, tasks }: QuadrantProps) {
   
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
     setIsDragOver(true);
   };
 
@@ -49,7 +50,9 @@ function QuadrantColumn({ quadrant, tasks }: QuadrantProps) {
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     const taskId = e.dataTransfer.getData('taskId');
-    moveTask(taskId, quadrant);
+    if (taskId) {
+      moveTask(taskId, quadrant);
+    }
     setIsDragOver(false);
   };
 
