@@ -14,7 +14,7 @@ export function SystemSettings() {
   const [settings, setSettings] = useState<SystemSettingsType>({
     taskDueDateThresholds: {
       critical: 2,
-      medium: 5,
+      medium: 3,
       low: 5,
     },
     tasksPerPage: 10,
@@ -24,48 +24,48 @@ export function SystemSettings() {
   });
 
   useEffect(() => {
+    const fetchSettings = async () => {
+      setIsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('system_settings')
+          .select('*')
+          .eq('id', 'global')
+          .maybeSingle(); // Use maybeSingle instead of single to avoid errors if record doesn't exist
+
+        if (error) throw error;
+
+        if (data) {
+          // First cast to unknown then to our type to avoid direct type conversion errors
+          const settingsData = data.settings as unknown as SystemSettingsJson;
+          setSettings({
+            taskDueDateThresholds: {
+              critical: settingsData.taskDueDateThresholds?.critical ?? 2,
+              medium: settingsData.taskDueDateThresholds?.medium ?? 3,
+              low: settingsData.taskDueDateThresholds?.low ?? 5,
+            },
+            tasksPerPage: settingsData.tasksPerPage ?? 10,
+            defaultSortOrder: (settingsData.defaultSortOrder as "duedate-asc" | "duedate-desc" | "priority-asc" | "priority-desc") ?? 'duedate-asc',
+            markOverdueDays: settingsData.markOverdueDays ?? 3,
+            warningDays: settingsData.warningDays ?? 2,
+          });
+        } else {
+          console.log('No system settings found, will create on save');
+        }
+      } catch (error) {
+        console.error('Error fetching system settings:', error);
+        toast({
+          title: 'Error',
+          description: 'Could not load system settings',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
     fetchSettings();
   }, []);
-
-  const fetchSettings = async () => {
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('system_settings')
-        .select('*')
-        .eq('id', 'global')
-        .maybeSingle(); // Use maybeSingle instead of single to avoid errors if record doesn't exist
-
-      if (error) throw error;
-
-      if (data) {
-        // First cast to unknown then to our type to avoid direct type conversion errors
-        const settingsData = data.settings as unknown as SystemSettingsJson;
-        setSettings({
-          taskDueDateThresholds: {
-            critical: settingsData.taskDueDateThresholds?.critical ?? 2,
-            medium: settingsData.taskDueDateThresholds?.medium ?? 5,
-            low: settingsData.taskDueDateThresholds?.low ?? 5,
-          },
-          tasksPerPage: settingsData.tasksPerPage ?? 10,
-          defaultSortOrder: (settingsData.defaultSortOrder as "duedate-asc" | "duedate-desc" | "priority-asc" | "priority-desc") ?? 'duedate-asc',
-          markOverdueDays: settingsData.markOverdueDays ?? 3,
-          warningDays: settingsData.warningDays ?? 2,
-        });
-      } else {
-        console.log('No system settings found, will create on save');
-      }
-    } catch (error) {
-      console.error('Error fetching system settings:', error);
-      toast({
-        title: 'Error',
-        description: 'Could not load system settings',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const saveSettings = async () => {
     setIsSaving(true);
