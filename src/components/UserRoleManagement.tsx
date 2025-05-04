@@ -129,10 +129,10 @@ export function UserRoleManagement() {
       
       // Refresh users list
       fetchUsers();
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: 'Error',
-        description: 'Failed to update user role.',
+        description: error.message || 'Failed to update user role.',
         variant: 'destructive'
       });
       console.error('Error updating role:', error);
@@ -298,7 +298,7 @@ export function UserRoleManagement() {
               </SelectTrigger>
               <SelectContent>
                 {managers.length === 0 ? (
-                  <SelectItem value="no-managers-available">No available managers</SelectItem>
+                  <SelectItem value="no-managers-available" disabled>No available managers</SelectItem>
                 ) : (
                   managers.map(manager => (
                     <SelectItem key={manager.id} value={manager.id}>

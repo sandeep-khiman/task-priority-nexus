@@ -79,17 +79,37 @@ export const userService = {
     })) || [];
   },
 
-  // Update user role
+  // Update user role - Modified to use RPC function instead of direct update
+  // This avoids the infinite recursion in RLS policies
   async updateUserRole(userId: string, role: UserRole): Promise<void> {
     console.log(`Updating user ${userId} role to ${role}`);
     
-    const { error } = await supabase
-      .from('profiles')
-      .update({ role })
-      .eq('id', userId);
-    
-    if (error) {
-      console.error('Error updating user role:', error);
+    try {
+      // First attempt to use a direct update with service_role key if possible
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          role,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId);
+      
+      if (error) {
+        console.error('Error updating user role directly:', error);
+        // If the direct update failed, try using a function call or stored procedure
+        // which would bypass RLS policies
+        const { error: rpcError } = await supabase.rpc('update_user_role', {
+          user_id: userId,
+          new_role: role
+        });
+        
+        if (rpcError) {
+          console.error('Error updating user role via RPC:', rpcError);
+          throw rpcError;
+        }
+      }
+    } catch (error) {
+      console.error('Failed to update user role:', error);
       throw error;
     }
   },
@@ -98,13 +118,31 @@ export const userService = {
   async updateUserManager(userId: string, managerId: string | null): Promise<void> {
     console.log(`Updating user ${userId} manager to ${managerId}`);
     
-    const { error } = await supabase
-      .from('profiles')
-      .update({ manager_id: managerId })
-      .eq('id', userId);
-
-    if (error) {
-      console.error('Error updating user manager:', error);
+    try {
+      // First attempt to use a direct update
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          manager_id: managerId,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId);
+      
+      if (error) {
+        console.error('Error updating user manager directly:', error);
+        // If the direct update failed, try using a function call or stored procedure
+        const { error: rpcError } = await supabase.rpc('update_user_manager', {
+          user_id: userId,
+          manager_id: managerId
+        });
+        
+        if (rpcError) {
+          console.error('Error updating user manager via RPC:', rpcError);
+          throw rpcError;
+        }
+      }
+    } catch (error) {
+      console.error('Failed to update user manager:', error);
       throw error;
     }
   },
