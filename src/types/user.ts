@@ -19,18 +19,18 @@ export interface Team {
   id: string;
   name: string;
   description?: string;
-  leadId?: string; // Added for compatibility with components
+  leadId?: string; 
   teamLeadId?: string;
   teamLeadName?: string;
   managerId?: string;
-  manager_id?: string; // Added for compatibility with services
+  manager_id?: string; 
   managerName?: string;
   memberIds: string[];
   memberNames?: string[];
   createdAt?: string;
   updatedAt?: string;
-  created_at?: string; // Added for compatibility with services
-  updated_at?: string; // Added for compatibility with services
+  created_at?: string;
+  updated_at?: string;
 }
 
 // Add missing types needed by components
@@ -39,7 +39,7 @@ export interface CreateTeamPayload {
   leadId?: string;
   memberIds: string[];
   managerId: string;
-  manager_id?: string; // For compatibility with services
+  manager_id?: string;
 }
 
 export interface EditTeamPayload {
@@ -48,7 +48,7 @@ export interface EditTeamPayload {
   leadId?: string;
   memberIds?: string[];
   managerId?: string;
-  manager_id?: string; // For compatibility with services
+  manager_id?: string;
 }
 
 export interface SystemSettings {
