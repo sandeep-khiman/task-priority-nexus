@@ -23,7 +23,7 @@ export function CreateTeamDialog({ users, teamLeads, managers, onCreateTeam }: C
   const [open, setOpen] = useState(false);
   const [teamName, setTeamName] = useState('');
   const [selectedManagerId, setSelectedManagerId] = useState<string>('');
-  const [selectedLeadId, setSelectedLeadId] = useState<string>('');
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   
   // Filter employees only
@@ -43,7 +43,7 @@ export function CreateTeamDialog({ users, teamLeads, managers, onCreateTeam }: C
       if (profile?.role !== 'manager') {
         setSelectedManagerId('');
       }
-      setSelectedLeadId('');
+      setSelectedLeadId(null);
       setSelectedMemberIds([]);
     }
   }, [open, profile]);
@@ -72,7 +72,7 @@ export function CreateTeamDialog({ users, teamLeads, managers, onCreateTeam }: C
     if (profile?.role !== 'manager') {
       setSelectedManagerId('');
     }
-    setSelectedLeadId('');
+    setSelectedLeadId(null);
     setSelectedMemberIds([]);
     setOpen(false);
     
@@ -140,14 +140,14 @@ export function CreateTeamDialog({ users, teamLeads, managers, onCreateTeam }: C
           <div className="grid gap-2">
             <Label>Team Lead (Optional)</Label>
             <Select 
-              value={selectedLeadId} 
-              onValueChange={setSelectedLeadId}
+              value={selectedLeadId || "none"}
+              onValueChange={(value) => setSelectedLeadId(value === "none" ? null : value)}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select team lead" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="none">None</SelectItem>
                 {teamLeads.map((lead) => (
                   <SelectItem key={lead.id} value={lead.id}>
                     {lead.name}

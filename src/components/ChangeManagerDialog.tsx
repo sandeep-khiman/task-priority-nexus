@@ -31,7 +31,7 @@ export function ChangeManagerDialog({ user, onManagerChanged }: ChangeManagerDia
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [managers, setManagers] = useState<User[]>([]);
-  const [selectedManagerId, setSelectedManagerId] = useState<string>(user.managerId || '');
+  const [selectedManagerId, setSelectedManagerId] = useState<string>('');
   const { toast } = useToast();
   
   // Fetch available managers when dialog opens
@@ -137,7 +137,7 @@ export function ChangeManagerDialog({ user, onManagerChanged }: ChangeManagerDia
             </SelectTrigger>
             <SelectContent>
               {managers.length === 0 ? (
-                <SelectItem value="no-managers" disabled>No available managers</SelectItem>
+                <SelectItem value="no-managers-available">No available managers</SelectItem>
               ) : (
                 managers.map(manager => (
                   <SelectItem key={manager.id} value={manager.id}>

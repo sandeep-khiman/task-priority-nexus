@@ -30,23 +30,23 @@ export function EditTeamDialog({
 }: EditTeamDialogProps) {
   const { toast } = useToast();
   const [teamName, setTeamName] = useState('');
-  const [selectedLeadId, setSelectedLeadId] = useState<string>('');
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   
   // Initialize form with team data
   useEffect(() => {
     if (team) {
       setTeamName(team.name);
-      setSelectedLeadId(team.leadId);
+      setSelectedLeadId(team.leadId || null);
       setSelectedMemberIds(team.memberIds || []);
     }
   }, [team]);
 
   const handleSave = () => {
-    if (!teamName || !selectedLeadId) {
+    if (!teamName) {
       toast({
         title: "Missing information",
-        description: "Please provide a team name and select a team lead",
+        description: "Please provide a team name",
         variant: "destructive"
       });
       return;
@@ -55,7 +55,7 @@ export function EditTeamDialog({
     const updatedTeam: Team = {
       ...team,
       name: teamName,
-      leadId: selectedLeadId,
+      leadId: selectedLeadId || null,
       memberIds: selectedMemberIds
     };
 
@@ -94,13 +94,14 @@ export function EditTeamDialog({
           <div className="grid gap-2">
             <Label>Team Lead</Label>
             <Select 
-              value={selectedLeadId} 
-              onValueChange={setSelectedLeadId}
+              value={selectedLeadId || "none"} 
+              onValueChange={(value) => setSelectedLeadId(value === "none" ? null : value)}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select team lead" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="none">None</SelectItem>
                 {teamLeads.map((lead) => (
                   <SelectItem key={lead.id} value={lead.id}>
                     {lead.name}
@@ -141,7 +142,7 @@ export function EditTeamDialog({
           </Button>
           <Button 
             onClick={handleSave} 
-            disabled={!teamName || !selectedLeadId}
+            disabled={!teamName}
           >
             Save Changes
           </Button>
