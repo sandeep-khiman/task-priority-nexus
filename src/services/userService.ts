@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { User, UserRole } from '@/types/user';
 
@@ -98,9 +97,8 @@ export const userService = {
         console.error('Error updating user role directly:', error);
         // If the direct update failed, try using a function call or stored procedure
         // which would bypass RLS policies
-        const { error: rpcError } = await supabase.rpc('update_user_role', {
-          user_id: userId,
-          new_role: role
+        const { error: rpcError } = await supabase.functions.invoke('update-user-role', {
+          body: { user_id: userId, new_role: role }
         });
         
         if (rpcError) {
@@ -131,9 +129,8 @@ export const userService = {
       if (error) {
         console.error('Error updating user manager directly:', error);
         // If the direct update failed, try using a function call or stored procedure
-        const { error: rpcError } = await supabase.rpc('update_user_manager', {
-          user_id: userId,
-          manager_id: managerId
+        const { error: rpcError } = await supabase.functions.invoke('update-user-manager', {
+          body: { user_id: userId, manager_id: managerId }
         });
         
         if (rpcError) {

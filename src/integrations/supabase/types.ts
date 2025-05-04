@@ -231,6 +231,14 @@ export type Database = {
         Args: { team_id: string; user_id: string }
         Returns: boolean
       }
+      update_user_manager: {
+        Args: { user_id: string; manager_id: string }
+        Returns: undefined
+      }
+      update_user_role: {
+        Args: { user_id: string; new_role: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
