@@ -1,6 +1,7 @@
 
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { TaskProvider } from '@/contexts/TaskContext';
 import { Toaster } from '@/components/ui/toaster';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -22,18 +23,20 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <Router>
         <AuthProvider>
-          <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/admin" element={<AdminSettings />} />
-            <Route path="/manager" element={<ManagerDashboard />} />
-            <Route path="/profile" element={<UserProfile />} />
-            <Route path="/profile/:userId" element={<UserProfile />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          <Toaster />
+          <TaskProvider>
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/admin" element={<AdminSettings />} />
+              <Route path="/manager" element={<ManagerDashboard />} />
+              <Route path="/profile" element={<UserProfile />} />
+              <Route path="/profile/:userId" element={<UserProfile />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            <Toaster />
+          </TaskProvider>
         </AuthProvider>
       </Router>
     </QueryClientProvider>
