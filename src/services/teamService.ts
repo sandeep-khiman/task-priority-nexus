@@ -43,9 +43,12 @@ export const teamService = {
       teams.push({
         id: teamData.id,
         name: teamData.name,
+        managerId: teamData.manager_id,
         manager_id: teamData.manager_id,
         leadId,
         memberIds,
+        createdAt: teamData.created_at,
+        updatedAt: teamData.updated_at,
         created_at: teamData.created_at,
         updated_at: teamData.updated_at
       });
@@ -62,7 +65,7 @@ export const teamService = {
       .from('teams')
       .insert({
         name: team.name,
-        manager_id: team.managerId
+        manager_id: team.managerId || team.manager_id
       })
       .select()
       .single();
@@ -73,7 +76,6 @@ export const teamService = {
     }
 
     const newTeamId = teamData.id;
-    const memberRecords = [];
 
     // Add the team lead if provided
     if (team.leadId) {
@@ -113,8 +115,9 @@ export const teamService = {
       id: newTeamId,
       name: team.name,
       leadId: team.leadId,
-      memberIds: team.memberIds || [],
-      manager_id: team.managerId
+      managerId: team.managerId,
+      manager_id: team.managerId || team.manager_id,
+      memberIds: team.memberIds || []
     };
   },
 
@@ -184,8 +187,9 @@ export const teamService = {
       id: team.id,
       name: team.name,
       leadId: team.leadId,
-      memberIds: team.memberIds || [],
-      manager_id: team.managerId || team.manager_id
+      managerId: team.managerId,
+      manager_id: team.managerId || team.manager_id,
+      memberIds: team.memberIds || []
     };
   },
 
@@ -244,9 +248,12 @@ export const teamService = {
       teams.push({
         id: teamData.id,
         name: teamData.name,
+        managerId: teamData.manager_id,
         manager_id: teamData.manager_id,
         leadId,
         memberIds,
+        createdAt: teamData.created_at,
+        updatedAt: teamData.updated_at,
         created_at: teamData.created_at,
         updated_at: teamData.updated_at
       });

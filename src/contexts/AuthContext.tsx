@@ -81,6 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: data.role as UserRole,
         createdAt: data.created_at,
         updatedAt: data.updated_at,
+        managerId: data.manager_id,
         avatarUrl: data.avatar_url,
       } as User : null;
     } catch (error) {

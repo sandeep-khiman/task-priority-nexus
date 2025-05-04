@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { User, UserRole } from '@/types/user';
 
@@ -21,10 +20,9 @@ export const userService = {
       name: profile.name,
       role: profile.role as UserRole,
       managerId: profile.manager_id,
-      manager_id: profile.manager_id, // Include both formats
       createdAt: profile.created_at,
       updatedAt: profile.updated_at,
-      avatarUrl: profile.avatar_url || undefined
+      avatarUrl: profile.avatar_url
     })) || [];
   },
 
@@ -49,10 +47,9 @@ export const userService = {
       name: data.name,
       role: data.role as UserRole,
       managerId: data.manager_id,
-      manager_id: data.manager_id, // Include both formats
       createdAt: data.created_at,
       updatedAt: data.updated_at,
-      avatarUrl: data.avatar_url || undefined
+      avatarUrl: data.avatar_url
     };
   },
 
@@ -75,10 +72,9 @@ export const userService = {
       name: profile.name,
       role: profile.role as UserRole,
       managerId: profile.manager_id,
-      manager_id: profile.manager_id, // Include both formats
       createdAt: profile.created_at,
       updatedAt: profile.updated_at,
-      avatarUrl: profile.avatar_url || undefined
+      avatarUrl: profile.avatar_url
     })) || [];
   },
 
@@ -163,10 +159,9 @@ export const userService = {
       name: member.profiles.name,
       role: member.profiles.role as UserRole,
       managerId: member.profiles.manager_id,
-      manager_id: member.profiles.manager_id,
       createdAt: member.profiles.created_at,
       updatedAt: member.profiles.updated_at,
-      avatarUrl: member.profiles.avatar_url || undefined
+      avatarUrl: member.profiles.avatar_url
     }));
   },
 
