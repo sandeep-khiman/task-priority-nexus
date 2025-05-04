@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -153,7 +152,12 @@ export function TeamManagement({ }: TeamManagementProps) {
       console.log('Updating team with data:', updatedTeam);
       await teamService.updateTeam({
         ...updatedTeam,
-        managerId: updatedTeam.manager_id
+        id: updatedTeam.id,
+        name: updatedTeam.name,
+        leadId: updatedTeam.leadId,
+        memberIds: updatedTeam.memberIds || [], // Ensure memberIds is always an array
+        managerId: updatedTeam.manager_id || '',
+        manager_id: updatedTeam.manager_id
       });
       
       toast({

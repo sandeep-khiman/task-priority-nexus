@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Team, CreateTeamPayload, EditTeamPayload, User } from '@/types/user';
 

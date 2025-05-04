@@ -47,7 +47,7 @@ export interface EditTeamPayload {
   id: string;
   name: string;
   leadId?: string; // Making this optional to match usage
-  memberIds: string[];
+  memberIds?: string[]; // Making this optional to match actual usage
   managerId: string;
   manager_id?: string; // Match DB schema
 }
