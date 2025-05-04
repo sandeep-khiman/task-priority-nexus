@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,6 +14,7 @@ interface ProfileData {
   created_at: string;
   updated_at: string;
   team_id?: string;
+  avatar_url?: string;
 }
 
 interface AuthState {
@@ -27,7 +28,7 @@ interface AuthState {
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string, role: UserRole) => Promise<void>;
+  register: (email: string, password: string, name: string, role?: UserRole) => Promise<void>;
   logout: () => Promise<void>;
   updateUserRole: (userId: string, role: UserRole) => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -56,6 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [authState, setAuthState] = useState<AuthState>(initialState);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Fetch profile data for a user
   const fetchProfile = async (userId: string) => {
@@ -79,6 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: data.role as UserRole,
         createdAt: data.created_at,
         updatedAt: data.updated_at,
+        avatarUrl: data.avatar_url,
       } as User : null;
     } catch (error) {
       console.error('Exception fetching profile:', error);
@@ -204,7 +207,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const register = async (email: string, password: string, name: string, role: UserRole) => {
+  const register = async (email: string, password: string, name: string, role: UserRole = 'employee') => {
     setAuthState({ ...authState, isLoading: true, error: null });
     
     try {
