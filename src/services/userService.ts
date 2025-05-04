@@ -1,5 +1,6 @@
+
 import { supabase } from '@/integrations/supabase/client';
-import { User, UserRole } from '@/types/user';
+import { User, UserRole, ProfileData } from '@/types/user';
 
 export const userService = {
   // Get all users

@@ -78,3 +78,15 @@ export interface SystemSettingsJson {
 
 // Helper type for JSON handling
 export type Json = string | number | boolean | null | { [key: string]: Json } | Json[];
+
+// Database profile type for Supabase interactions
+export interface ProfileData {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  created_at: string;
+  updated_at: string;
+  manager_id?: string;
+  avatar_url?: string;
+}

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -49,7 +48,7 @@ export function SystemSettings() {
             low: settingsData.taskDueDateThresholds?.low ?? 5,
           },
           tasksPerPage: settingsData.tasksPerPage ?? 10,
-          defaultSortOrder: settingsData.defaultSortOrder ?? 'duedate-asc',
+          defaultSortOrder: (settingsData.defaultSortOrder as "duedate-asc" | "duedate-desc" | "priority-asc" | "priority-desc") ?? 'duedate-asc',
           markOverdueDays: settingsData.markOverdueDays ?? 3,
           warningDays: settingsData.warningDays ?? 2,
         });

@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
@@ -15,6 +14,7 @@ interface ProfileData {
   updated_at: string;
   team_id?: string;
   avatar_url?: string;
+  manager_id?: string;
 }
 
 interface AuthState {
