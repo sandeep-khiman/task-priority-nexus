@@ -1,4 +1,3 @@
-
 import { User as SupabaseUser } from '@supabase/supabase-js';
 
 export type UserRole = 'admin' | 'manager' | 'team-lead' | 'employee';
@@ -16,7 +15,7 @@ export interface User {
   teamIds?: string[]; // IDs of all teams the user belongs to (new multi-team support)
   teamLeadIds?: Record<string, string>; // Map of teamId to teamLeadId (new)
   teamMembers?: string[]; // IDs of team members (for team leads)
-  avatarUrl?: string; // URL to user's profile picture (new)
+  avatarUrl?: string; // URL to user's profile picture
 }
 
 export interface AuthState {

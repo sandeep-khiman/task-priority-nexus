@@ -24,7 +24,7 @@ export const userService = {
       manager_id: profile.manager_id, // Include both formats
       createdAt: profile.created_at,
       updatedAt: profile.updated_at,
-      avatarUrl: profile.avatar_url
+      avatarUrl: profile.avatar_url || undefined
     })) || [];
   },
 
@@ -52,7 +52,7 @@ export const userService = {
       manager_id: data.manager_id, // Include both formats
       createdAt: data.created_at,
       updatedAt: data.updated_at,
-      avatarUrl: data.avatar_url
+      avatarUrl: data.avatar_url || undefined
     };
   },
 
@@ -78,7 +78,7 @@ export const userService = {
       manager_id: profile.manager_id, // Include both formats
       createdAt: profile.created_at,
       updatedAt: profile.updated_at,
-      avatarUrl: profile.avatar_url
+      avatarUrl: profile.avatar_url || undefined
     })) || [];
   },
 
@@ -166,7 +166,7 @@ export const userService = {
       manager_id: member.profiles.manager_id,
       createdAt: member.profiles.created_at,
       updatedAt: member.profiles.updated_at,
-      avatarUrl: member.profiles.avatar_url
+      avatarUrl: member.profiles.avatar_url || undefined
     }));
   },
 
