@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { Team, CreateTeamPayload, EditTeamPayload, User } from '@/types/user';
 
@@ -54,57 +55,9 @@ export const teamService = {
     return teams;
   },
 
-  // Fetch a single team by ID
-  async getTeamById(teamId: string): Promise<Team | null> {
-    const { data: teamData, error: teamError } = await supabase
-      .from('teams')
-      .select(`
-        id,
-        name,
-        manager_id,
-        created_at,
-        updated_at
-      `)
-      .eq('id', teamId)
-      .single();
-
-    if (teamError) {
-      console.error('Error fetching team:', teamError);
-      throw teamError;
-    }
-
-    if (!teamData) return null;
-
-    // Get team members
-    const { data: memberData, error: memberError } = await supabase
-      .from('team_members')
-      .select(`
-        user_id,
-        is_lead
-      `)
-      .eq('team_id', teamId);
-
-    if (memberError) {
-      console.error('Error fetching team members:', memberError);
-      return null;
-    }
-
-    const leadId = memberData?.find(m => m.is_lead)?.user_id;
-    const memberIds = memberData?.filter(m => !m.is_lead).map(m => m.user_id) || [];
-
-    return {
-      id: teamData.id,
-      name: teamData.name,
-      manager_id: teamData.manager_id,
-      leadId,
-      memberIds,
-      created_at: teamData.created_at,
-      updated_at: teamData.updated_at
-    };
-  },
-
   // Create a new team
   async createTeam(team: CreateTeamPayload): Promise<Team> {
+    console.log('Creating team with data:', team);
     // First create the team
     const { data: teamData, error: teamError } = await supabase
       .from('teams')
@@ -121,23 +74,26 @@ export const teamService = {
     }
 
     const newTeamId = teamData.id;
+    const memberRecords = [];
 
-    // Then add the team lead
-    const { error: leadError } = await supabase
-      .from('team_members')
-      .insert({
-        team_id: newTeamId,
-        user_id: team.leadId,
-        is_lead: true
-      });
+    // Add the team lead if provided
+    if (team.leadId) {
+      const { error: leadError } = await supabase
+        .from('team_members')
+        .insert({
+          team_id: newTeamId,
+          user_id: team.leadId,
+          is_lead: true
+        });
 
-    if (leadError) {
-      console.error('Error adding team lead:', leadError);
-      throw leadError;
+      if (leadError) {
+        console.error('Error adding team lead:', leadError);
+        throw leadError;
+      }
     }
 
     // Then add all team members
-    if (team.memberIds.length > 0) {
+    if (team.memberIds && team.memberIds.length > 0) {
       const memberRecords = team.memberIds.map(userId => ({
         team_id: newTeamId,
         user_id: userId,
@@ -158,20 +114,20 @@ export const teamService = {
       id: newTeamId,
       name: team.name,
       leadId: team.leadId,
-      memberIds: team.memberIds,
+      memberIds: team.memberIds || [],
       manager_id: team.managerId
     };
   },
 
   // Update an existing team
   async updateTeam(team: EditTeamPayload): Promise<Team> {
-    // Update the team name
+    console.log('Updating team with data:', team);
+    // Update the team name and manager
     const { error: teamError } = await supabase
       .from('teams')
       .update({
         name: team.name,
-        manager_id: team.managerId || team.manager_id,
-        updated_at: new Date().toISOString()
+        manager_id: team.managerId || team.manager_id
       })
       .eq('id', team.id);
 
@@ -191,18 +147,20 @@ export const teamService = {
       throw deleteError;
     }
 
-    // Add the team lead
-    const { error: leadError } = await supabase
-      .from('team_members')
-      .insert({
-        team_id: team.id,
-        user_id: team.leadId,
-        is_lead: true
-      });
+    // Add the team lead if provided
+    if (team.leadId) {
+      const { error: leadError } = await supabase
+        .from('team_members')
+        .insert({
+          team_id: team.id,
+          user_id: team.leadId,
+          is_lead: true
+        });
 
-    if (leadError) {
-      console.error('Error adding team lead:', leadError);
-      throw leadError;
+      if (leadError) {
+        console.error('Error adding team lead:', leadError);
+        throw leadError;
+      }
     }
 
     // Then add all team members
@@ -227,7 +185,7 @@ export const teamService = {
       id: team.id,
       name: team.name,
       leadId: team.leadId,
-      memberIds: team.memberIds,
+      memberIds: team.memberIds || [],
       manager_id: team.managerId || team.manager_id
     };
   },
@@ -244,26 +202,6 @@ export const teamService = {
       console.error('Error deleting team:', error);
       throw error;
     }
-  },
-
-  // Get team members
-  async getTeamMembers(teamId: string): Promise<any[]> {
-    const { data, error } = await supabase
-      .from('team_members')
-      .select(`
-        id,
-        user_id,
-        is_lead,
-        profiles:user_id (id, name, email, role)
-      `)
-      .eq('team_id', teamId);
-
-    if (error) {
-      console.error('Error fetching team members:', error);
-      throw error;
-    }
-
-    return data || [];
   },
 
   // Get all teams for a manager

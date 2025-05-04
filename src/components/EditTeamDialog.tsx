@@ -56,9 +56,10 @@ export function EditTeamDialog({
       ...team,
       name: teamName,
       leadId: selectedLeadId || null,
-      memberIds: selectedMemberIds
+      memberIds: selectedMemberIds || []
     };
-
+    
+    console.log('Saving team with data:', updatedTeam);
     onSave(updatedTeam);
   };
   

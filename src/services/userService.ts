@@ -83,13 +83,10 @@ export const userService = {
   async updateUserRole(userId: string, role: UserRole): Promise<void> {
     console.log(`Updating user ${userId} role to ${role}`);
     
-    const { error, data } = await supabase
+    const { error } = await supabase
       .from('profiles')
       .update({ role })
-      .eq('id', userId)
-      .select();
-
-    console.log("Update result:", data, error);
+      .eq('id', userId);
     
     if (error) {
       console.error('Error updating user role:', error);
@@ -101,13 +98,10 @@ export const userService = {
   async updateUserManager(userId: string, managerId: string | null): Promise<void> {
     console.log(`Updating user ${userId} manager to ${managerId}`);
     
-    const { error, data } = await supabase
+    const { error } = await supabase
       .from('profiles')
       .update({ manager_id: managerId })
-      .eq('id', userId)
-      .select();
-      
-    console.log("Update manager result:", data, error);
+      .eq('id', userId);
 
     if (error) {
       console.error('Error updating user manager:', error);

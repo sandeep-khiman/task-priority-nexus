@@ -13,6 +13,7 @@ import { CreateTeamDialog } from './CreateTeamDialog';
 import { userService } from '@/services/userService';
 import { teamService } from '@/services/teamService';
 import { supabase } from '@/integrations/supabase/client';
+import { EditTeamDialog } from './EditTeamDialog';
 
 interface TeamManagementProps {
   // Optional props can be added here
@@ -28,6 +29,8 @@ export function TeamManagement({ }: TeamManagementProps) {
   const [teamAssignments, setTeamAssignments] = useState<Record<string, string[]>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [selectedManager, setSelectedManager] = useState<string>('all');
+  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   // Load real data from Supabase
   useEffect(() => {
@@ -83,6 +86,7 @@ export function TeamManagement({ }: TeamManagementProps) {
     try {
       // Fetch all users with their roles
       const fetchedUsers = await userService.getUsers();
+      console.log('Fetched users:', fetchedUsers);
       setUsers(fetchedUsers);
       
       // Set user categories based on roles
@@ -92,6 +96,7 @@ export function TeamManagement({ }: TeamManagementProps) {
       
       // Fetch teams
       const fetchedTeams = await teamService.getTeams();
+      console.log('Fetched teams:', fetchedTeams);
       setTeams(fetchedTeams);
       
       // Create team assignments mapping
@@ -119,6 +124,7 @@ export function TeamManagement({ }: TeamManagementProps) {
   // Function to create a new team
   const handleCreateTeam = async (teamData: CreateTeamPayload) => {
     try {
+      console.log('Creating team with data:', teamData);
       const newTeam = await teamService.createTeam({
         ...teamData,
         manager_id: teamData.managerId  // Ensure the manager_id is set
@@ -137,6 +143,35 @@ export function TeamManagement({ }: TeamManagementProps) {
         title: "Error",
         description: "Failed to create team. Please try again.",
         variant: "destructive"
+      });
+    }
+  };
+
+  // Function to handle editing a team
+  const handleEditTeam = async (updatedTeam: Team) => {
+    try {
+      console.log('Updating team with data:', updatedTeam);
+      await teamService.updateTeam({
+        ...updatedTeam,
+        managerId: updatedTeam.manager_id
+      });
+      
+      toast({
+        title: "Team Updated",
+        description: `Team "${updatedTeam.name}" has been updated successfully`
+      });
+      
+      setIsEditDialogOpen(false);
+      setSelectedTeam(null);
+      
+      // Refresh data
+      fetchData();
+    } catch (error) {
+      console.error('Error updating team:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update team. Please try again.',
+        variant: 'destructive'
       });
     }
   };
@@ -167,6 +202,7 @@ export function TeamManagement({ }: TeamManagementProps) {
         manager_id: team.manager_id
       };
       
+      console.log('Updating team to add member:', updatedTeam);
       await teamService.updateTeam(updatedTeam);
       
       toast({
@@ -212,6 +248,7 @@ export function TeamManagement({ }: TeamManagementProps) {
         manager_id: team.manager_id
       };
       
+      console.log('Updating team to remove member:', updatedTeam);
       await teamService.updateTeam(updatedTeam);
       
       toast({
@@ -229,6 +266,12 @@ export function TeamManagement({ }: TeamManagementProps) {
         variant: "destructive"
       });
     }
+  };
+
+  // Open edit dialog for a team
+  const openEditDialog = (team: Team) => {
+    setSelectedTeam(team);
+    setIsEditDialogOpen(true);
   };
 
   // Check if an employee is assigned to a team lead
@@ -298,6 +341,7 @@ export function TeamManagement({ }: TeamManagementProps) {
                     <TableHead>Manager</TableHead>
                     <TableHead>Team Lead</TableHead>
                     <TableHead>Members</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -308,24 +352,34 @@ export function TeamManagement({ }: TeamManagementProps) {
                       <TableRow key={team.id}>
                         <TableCell className="font-medium">{team.name}</TableCell>
                         <TableCell>{getUserName(team.manager_id || '')}</TableCell>
-                        <TableCell>{getUserName(team.leadId || '')}</TableCell>
+                        <TableCell>{team.leadId ? getUserName(team.leadId) : 'None'}</TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
-                            {team.memberIds?.map(memberId => (
-                              <Badge key={memberId} variant="secondary">
-                                {getUserName(memberId)}
-                              </Badge>
-                            ))}
-                            {!team.memberIds || team.memberIds.length === 0 && (
+                            {team.memberIds && team.memberIds.length > 0 ? (
+                              team.memberIds.map(memberId => (
+                                <Badge key={memberId} variant="secondary">
+                                  {getUserName(memberId)}
+                                </Badge>
+                              ))
+                            ) : (
                               <span className="text-muted-foreground">No members</span>
                             )}
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openEditDialog(team)}
+                          >
+                            Edit
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center py-4">
+                      <TableCell colSpan={5} className="text-center py-4">
                         No teams created yet
                       </TableCell>
                     </TableRow>
@@ -423,6 +477,19 @@ export function TeamManagement({ }: TeamManagementProps) {
           </div>
         )}
       </CardContent>
+
+      {/* Edit Team Dialog */}
+      {selectedTeam && (
+        <EditTeamDialog 
+          open={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          team={selectedTeam}
+          users={users}
+          teamLeads={teamLeads}
+          employees={employees}
+          onSave={handleEditTeam}
+        />
+      )}
     </Card>
   );
 }

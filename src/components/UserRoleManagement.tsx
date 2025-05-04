@@ -58,6 +58,7 @@ export function UserRoleManagement() {
     try {
       setIsLoading(true);
       const fetchedUsers = await userService.getUsers();
+      console.log('Fetched users:', fetchedUsers);
       setUsers(fetchedUsers);
       
       // Extract managers for the dropdown
@@ -80,6 +81,8 @@ export function UserRoleManagement() {
     const user = users.find(u => u.id === userId);
     if (!user) return;
     
+    console.log(`Changing role for user ${userId} from ${user.role} to ${role}`);
+    
     // Logic for role changes
     if (role === 'admin' || role === 'manager') {
       // Admin and Manager roles don't need a manager
@@ -100,7 +103,9 @@ export function UserRoleManagement() {
     setUpdatingUserId(userId);
     
     try {
-      // Update the user's role in the database directly since Auth context doesn't have this method
+      console.log(`Processing role change for user ${userId} to ${role}`);
+      
+      // Update the user's role in the database
       await userService.updateUserRole(userId, role);
       
       // Update the manager if provided
@@ -292,11 +297,15 @@ export function UserRoleManagement() {
                 <SelectValue placeholder="Select a manager" />
               </SelectTrigger>
               <SelectContent>
-                {managers.map(manager => (
-                  <SelectItem key={manager.id} value={manager.id}>
-                    {manager.name}
-                  </SelectItem>
-                ))}
+                {managers.length === 0 ? (
+                  <SelectItem value="no-managers-available">No available managers</SelectItem>
+                ) : (
+                  managers.map(manager => (
+                    <SelectItem key={manager.id} value={manager.id}>
+                      {manager.name}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -315,7 +324,7 @@ export function UserRoleManagement() {
                   processRoleChange(selectedUser.id, pendingRole, selectedManagerId);
                 }
               }}
-              disabled={!selectedManagerId}
+              disabled={!selectedManagerId || managers.length === 0}
             >
               Confirm
             </Button>

@@ -35,7 +35,7 @@ export function SystemSettings() {
         .from('system_settings')
         .select('*')
         .eq('id', 'global')
-        .single();
+        .maybeSingle(); // Use maybeSingle instead of single to avoid errors if record doesn't exist
 
       if (error) throw error;
 
@@ -53,6 +53,8 @@ export function SystemSettings() {
           markOverdueDays: settingsData.markOverdueDays ?? 3,
           warningDays: settingsData.warningDays ?? 2,
         });
+      } else {
+        console.log('No system settings found, will create on save');
       }
     } catch (error) {
       console.error('Error fetching system settings:', error);
@@ -78,13 +80,37 @@ export function SystemSettings() {
         warningDays: settings.warningDays,
       };
 
-      // Cast to Json as unknown to ensure compatibility with Supabase
-      const { error } = await supabase
-        .from('system_settings')
-        .update({ settings: settingsJson as unknown as Json })
-        .eq('id', 'global');
+      console.log('Saving settings:', settingsJson);
 
-      if (error) throw error;
+      // First check if the record exists
+      const { data: existingData, error: checkError } = await supabase
+        .from('system_settings')
+        .select('id')
+        .eq('id', 'global')
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+
+      let result;
+      if (existingData) {
+        // Update existing record
+        result = await supabase
+          .from('system_settings')
+          .update({ settings: settingsJson as unknown as Json })
+          .eq('id', 'global')
+          .select();
+      } else {
+        // Insert new record
+        result = await supabase
+          .from('system_settings')
+          .insert({ 
+            id: 'global', 
+            settings: settingsJson as unknown as Json 
+          })
+          .select();
+      }
+
+      if (result.error) throw result.error;
 
       toast({
         title: 'Settings Saved',

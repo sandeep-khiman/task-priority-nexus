@@ -65,6 +65,7 @@ export function CreateTeamDialog({ users, teamLeads, managers, onCreateTeam }: C
       memberIds: selectedMemberIds
     };
 
+    console.log('Creating team with data:', newTeam);
     onCreateTeam(newTeam);
     
     // Reset form

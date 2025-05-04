@@ -40,8 +40,9 @@ export function ChangeManagerDialog({ user, onManagerChanged }: ChangeManagerDia
       if (open) {
         try {
           setIsLoading(true);
-          const users = await userService.getUsers();
-          const availableManagers = users.filter(u => u.role === 'manager' && u.id !== user.id);
+          const users = await userService.getUsersByRole('manager');
+          console.log('Available managers:', users);
+          const availableManagers = users.filter(u => u.id !== user.id);
           setManagers(availableManagers);
           
           // Set the current manager as selected if it exists
@@ -79,6 +80,8 @@ export function ChangeManagerDialog({ user, onManagerChanged }: ChangeManagerDia
         });
         return;
       }
+      
+      console.log(`Changing manager for user ${user.id} to ${selectedManagerId}`);
       
       // Update the user's manager
       await userService.updateUserManager(user.id, selectedManagerId || null);
