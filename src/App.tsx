@@ -1,122 +1,43 @@
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
-import { AuthProvider } from "./contexts/AuthContext";
-import { TaskProvider } from "./contexts/TaskContext";
-import Dashboard from "./pages/Dashboard";
-import Login from "./pages/Login";
-import AdminSettings from "./pages/AdminSettings";
-import ManagerDashboard from "./pages/ManagerDashboard";
-import NotFound from "./pages/NotFound";
-import { useAuth } from "./contexts/AuthContext";
-import { UserRole } from "./types/user";
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from '@/contexts/AuthContext';
+import { Toaster } from '@/components/ui/toaster';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
+// Pages
+import Landing from '@/pages/Landing';
+import Login from '@/pages/Login';
+import Register from '@/pages/Register';
+import Dashboard from '@/pages/Dashboard';
+import AdminSettings from '@/pages/AdminSettings';
+import ManagerDashboard from '@/pages/ManagerDashboard';
+import UserProfile from '@/pages/UserProfile';
+import NotFound from '@/pages/NotFound';
 
-// Protected route component
-const ProtectedRoute = ({ 
-  requiredRole 
-}: { 
-  requiredRole?: UserRole | UserRole[] 
-}) => {
-  const { isAuthenticated, profile, isLoading } = useAuth();
+// Create a client
+const queryClient = new QueryClient();
 
-  // If still loading auth state, show nothing
-  if (isLoading) {
-    return <div className="flex h-screen items-center justify-center">Loading...</div>;
-  }
-
-  // If not authenticated, redirect to login
-  if (!isAuthenticated) {
-    return <Navigate to="/login" />;
-  }
-
-  // If role is required but user doesn't have it
-  if (requiredRole && profile) {
-    const requiredRoles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
-    if (!requiredRoles.includes(profile.role)) {
-      // Redirect based on role
-      switch (profile.role) {
-        case 'admin':
-          return <Navigate to="/admin" />;
-        case 'manager':
-          return <Navigate to="/manager" />;
-        default:
-          return <Navigate to="/" />;
-      }
-    }
-  }
-
-  return <Outlet />;
-};
-
-// Routes that are only accessible when NOT authenticated
-const PublicOnlyRoute = () => {
-  const { isAuthenticated, isLoading } = useAuth();
-  
-  if (isLoading) {
-    return <div className="flex h-screen items-center justify-center">Loading...</div>;
-  }
-  
-  if (isAuthenticated) {
-    return <Navigate to="/" />;
-  }
-  
-  return <Outlet />;
-};
-
-// App with AuthProvider wrapper
-const AppWithAuth = () => (
-  <BrowserRouter>
-    <AuthProvider>
-      <TaskProvider>
-        <Routes>
-          {/* Public routes */}
-          <Route element={<PublicOnlyRoute />}>
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
-          </Route>
-          
-          {/* Protected routes for all authenticated users */}
-          <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<Dashboard />} />
-          </Route>
-          
-          {/* Admin routes */}
-          <Route element={<ProtectedRoute requiredRole="admin" />}>
+            <Route path="/register" element={<Register />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/admin" element={<AdminSettings />} />
-          </Route>
-          
-          {/* Manager routes */}
-          <Route element={<ProtectedRoute requiredRole={['manager', 'admin']} />}>
             <Route path="/manager" element={<ManagerDashboard />} />
-          </Route>
-          
-          {/* 404 route */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </TaskProvider>
-    </AuthProvider>
-  </BrowserRouter>
-);
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <AppWithAuth />
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+            <Route path="/profile" element={<UserProfile />} />
+            <Route path="/profile/:userId" element={<UserProfile />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Router>
+        <Toaster />
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+}
 
 export default App;

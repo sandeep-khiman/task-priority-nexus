@@ -1,82 +1,118 @@
 
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { CircleUserRound, Settings, ClipboardList, UsersRound } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getUserPermissions } from '@/utils/permissionUtils';
 
 export function Header() {
-  const { user, profile, logout } = useAuth();
-  const navigate = useNavigate();
+  const { isAuthenticated, profile, logout } = useAuth();
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  // Function to get user initials for avatar fallback
+  const getUserInitials = (name: string): string => {
+    return name
+      ?.split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2) || 'U';
   };
 
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase();
+  // Get permissions based on user role
+  const permissions = profile ? getUserPermissions(profile.role) : {
+    canViewTeams: false,
+    canCreateTeams: false
   };
 
   return (
-    <header className="bg-primary text-primary-foreground shadow-md">
+    <header className="border-b">
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-6">
-          <Link to="/" className="flex items-center space-x-2">
-            <span className="text-xl font-bold">Task Priority Nexus</span>
+          <Link to="/" className="font-bold text-lg">
+            TaskFlow
           </Link>
+          {isAuthenticated && profile && (
+            <nav className="hidden md:flex items-center gap-6">
+              <Link 
+                to="/dashboard" 
+                className="text-sm font-medium transition-colors hover:text-primary"
+              >
+                Dashboard
+              </Link>
+              
+              {permissions.canViewTeams && (
+                <Link 
+                  to={profile.role === 'manager' ? "/manager" : "/teams"} 
+                  className="text-sm font-medium transition-colors hover:text-primary"
+                >
+                  Teams
+                </Link>
+              )}
+              
+              {profile.role === 'admin' && (
+                <Link 
+                  to="/admin" 
+                  className="text-sm font-medium transition-colors hover:text-primary"
+                >
+                  Admin
+                </Link>
+              )}
+            </nav>
+          )}
         </div>
-
-        <nav className="flex items-center gap-4">
-          <Button variant="ghost" asChild>
-            <Link to="/" className="flex items-center">
-              <ClipboardList className="mr-2 h-5 w-5" />
-              Tasks
-            </Link>
-          </Button>
-
-          {profile?.role === 'admin' && (
-            <Button variant="ghost" asChild>
-              <Link to="/admin" className="flex items-center">
-                <Settings className="mr-2 h-5 w-5" />
-                Admin Settings
-              </Link>
-            </Button>
-          )}
-
-          {profile?.role === 'manager' && (
-            <Button variant="ghost" asChild>
-              <Link to="/manager" className="flex items-center">
-                <UsersRound className="mr-2 h-5 w-5" />
-                Team Management
-              </Link>
-            </Button>
-          )}
-          
+        {isAuthenticated && profile ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback>{profile ? getInitials(profile.name) : <CircleUserRound className="h-5 w-5" />}</AvatarFallback>
+              <Button variant="ghost" className="relative h-9 w-9 rounded-full">
+                <Avatar className="h-9 w-9">
+                  {profile.avatarUrl ? (
+                    <AvatarImage src={profile.avatarUrl} alt={profile.name} />
+                  ) : (
+                    <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                      {getUserInitials(profile.name)}
+                    </AvatarFallback>
+                  )}
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end" forceMount>
-              {profile && (
-                <DropdownMenuItem className="flex flex-col items-start">
-                  <div className="text-sm font-medium">{profile.name}</div>
-                  <div className="text-xs text-muted-foreground">{profile.role}</div>
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuItem onClick={handleLogout}>Sign out</DropdownMenuItem>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>
+                <div className="flex flex-col">
+                  <span>{profile.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {profile.role.charAt(0).toUpperCase() + profile.role.slice(1).replace('-', ' ')}
+                  </span>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link to="/profile">My Profile</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/tasks">My Tasks</Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={logout}
+                className="text-red-500 cursor-pointer"
+              >
+                Log Out
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </nav>
+        ) : (
+          <Button asChild variant="default">
+            <Link to="/login">Log In</Link>
+          </Button>
+        )}
       </div>
     </header>
   );

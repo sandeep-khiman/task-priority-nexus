@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { User, UserRole } from '@/types/user';
 
@@ -22,7 +23,8 @@ export const userService = {
       managerId: profile.manager_id,
       manager_id: profile.manager_id, // Include both formats
       createdAt: profile.created_at,
-      updatedAt: profile.updated_at
+      updatedAt: profile.updated_at,
+      avatarUrl: profile.avatar_url
     })) || [];
   },
 
@@ -49,7 +51,8 @@ export const userService = {
       managerId: data.manager_id,
       manager_id: data.manager_id, // Include both formats
       createdAt: data.created_at,
-      updatedAt: data.updated_at
+      updatedAt: data.updated_at,
+      avatarUrl: data.avatar_url
     };
   },
 
@@ -74,37 +77,24 @@ export const userService = {
       managerId: profile.manager_id,
       manager_id: profile.manager_id, // Include both formats
       createdAt: profile.created_at,
-      updatedAt: profile.updated_at
+      updatedAt: profile.updated_at,
+      avatarUrl: profile.avatar_url
     })) || [];
   },
 
-  // Update user role - Modified to use RPC function instead of direct update
-  // This avoids the infinite recursion in RLS policies
+  // Update user role - Using Edge Function to bypass RLS
   async updateUserRole(userId: string, role: UserRole): Promise<void> {
     console.log(`Updating user ${userId} role to ${role}`);
     
     try {
-      // First attempt to use a direct update with service_role key if possible
-      const { error } = await supabase
-        .from('profiles')
-        .update({ 
-          role,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', userId);
+      // Call the edge function to update the user role
+      const { error: rpcError } = await supabase.functions.invoke('update-user-role', {
+        body: { user_id: userId, new_role: role }
+      });
       
-      if (error) {
-        console.error('Error updating user role directly:', error);
-        // If the direct update failed, try using a function call or stored procedure
-        // which would bypass RLS policies
-        const { error: rpcError } = await supabase.functions.invoke('update-user-role', {
-          body: { user_id: userId, new_role: role }
-        });
-        
-        if (rpcError) {
-          console.error('Error updating user role via RPC:', rpcError);
-          throw rpcError;
-        }
+      if (rpcError) {
+        console.error('Error updating user role via Edge Function:', rpcError);
+        throw rpcError;
       }
     } catch (error) {
       console.error('Failed to update user role:', error);
@@ -112,31 +102,19 @@ export const userService = {
     }
   },
   
-  // Update user manager
+  // Update user manager - Using Edge Function to bypass RLS
   async updateUserManager(userId: string, managerId: string | null): Promise<void> {
     console.log(`Updating user ${userId} manager to ${managerId}`);
     
     try {
-      // First attempt to use a direct update
-      const { error } = await supabase
-        .from('profiles')
-        .update({ 
-          manager_id: managerId,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', userId);
+      // Call the edge function to update the user manager
+      const { error: rpcError } = await supabase.functions.invoke('update-user-manager', {
+        body: { user_id: userId, manager_id: managerId }
+      });
       
-      if (error) {
-        console.error('Error updating user manager directly:', error);
-        // If the direct update failed, try using a function call or stored procedure
-        const { error: rpcError } = await supabase.functions.invoke('update-user-manager', {
-          body: { user_id: userId, manager_id: managerId }
-        });
-        
-        if (rpcError) {
-          console.error('Error updating user manager via RPC:', rpcError);
-          throw rpcError;
-        }
+      if (rpcError) {
+        console.error('Error updating user manager via Edge Function:', rpcError);
+        throw rpcError;
       }
     } catch (error) {
       console.error('Failed to update user manager:', error);
@@ -185,9 +163,87 @@ export const userService = {
       name: member.profiles.name,
       role: member.profiles.role as UserRole,
       managerId: member.profiles.manager_id,
-      manager_id: member.profiles.manager_id, // Include both formats
+      manager_id: member.profiles.manager_id,
       createdAt: member.profiles.created_at,
-      updatedAt: member.profiles.updated_at
+      updatedAt: member.profiles.updated_at,
+      avatarUrl: member.profiles.avatar_url
     }));
+  },
+
+  // Get all teams a user belongs to
+  async getUserTeams(userId: string): Promise<string[]> {
+    const { data, error } = await supabase
+      .from('team_members')
+      .select('team_id')
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error fetching user teams:', error);
+      throw error;
+    }
+
+    return data.map(item => item.team_id);
+  },
+
+  // Update user profile (except role)
+  async updateUserProfile(userId: string, profile: Partial<User>): Promise<void> {
+    // Make sure we're not updating the role (that should go through updateUserRole)
+    const { role, ...updateData } = profile;
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          name: updateData.name,
+          email: updateData.email,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId);
+      
+      if (error) {
+        console.error('Error updating user profile:', error);
+        throw error;
+      }
+    } catch (error) {
+      console.error('Failed to update user profile:', error);
+      throw error;
+    }
+  },
+
+  // Check if user is under manager's supervision
+  async isUserUnderManager(userId: string, managerId: string): Promise<boolean> {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('manager_id')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error('Error checking manager relationship:', error);
+      return false;
+    }
+
+    return data?.manager_id === managerId;
+  },
+
+  // Update user avatar URL
+  async updateUserAvatar(userId: string, avatarUrl: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          avatar_url: avatarUrl,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId);
+      
+      if (error) {
+        console.error('Error updating user avatar:', error);
+        throw error;
+      }
+    } catch (error) {
+      console.error('Failed to update user avatar:', error);
+      throw error;
+    }
   }
 };

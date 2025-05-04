@@ -12,8 +12,11 @@ export interface User {
   manager_id?: string; // Match DB schema for Supabase
   createdAt: string;
   updatedAt: string;
-  teamId?: string; // ID of the team the user belongs to (for employees)
+  teamId?: string; // ID of the team the user belongs to (for legacy compatibility)
+  teamIds?: string[]; // IDs of all teams the user belongs to (new multi-team support)
+  teamLeadIds?: Record<string, string>; // Map of teamId to teamLeadId (new)
   teamMembers?: string[]; // IDs of team members (for team leads)
+  avatarUrl?: string; // URL to user's profile picture (new)
 }
 
 export interface AuthState {
@@ -46,8 +49,8 @@ export interface CreateTeamPayload {
 export interface EditTeamPayload {
   id: string;
   name: string;
-  leadId?: string; // Making this optional to match usage
-  memberIds?: string[]; // Making this optional to match actual usage
+  leadId?: string; // Optional to match usage
+  memberIds?: string[]; // Optional to match actual usage
   managerId: string;
   manager_id?: string; // Match DB schema
 }

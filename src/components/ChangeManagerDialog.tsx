@@ -17,10 +17,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { User, UserRole } from '@/types/user';
+import { User } from '@/types/user';
 import { useToast } from '@/components/ui/use-toast';
 import { userService } from '@/services/userService';
-import { UserCircle2 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { getUserPermissions } from '@/utils/permissionUtils';
 
 interface ChangeManagerDialogProps {
   user: User;
@@ -29,75 +30,41 @@ interface ChangeManagerDialogProps {
 
 export function ChangeManagerDialog({ user, onManagerChanged }: ChangeManagerDialogProps) {
   const [open, setOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [managers, setManagers] = useState<User[]>([]);
-  const [selectedManagerId, setSelectedManagerId] = useState<string>('');
+  const [selectedManagerId, setSelectedManagerId] = useState<string>(user.managerId || '');
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { profile } = useAuth();
   
-  // Fetch available managers when dialog opens
+  // Get permissions based on current user role
+  const currentUserRole = profile?.role || 'employee';
+  const isUserUnderManager = profile?.id === user.managerId;
+  const permissions = getUserPermissions(currentUserRole, user.id, profile?.id, isUserUnderManager);
+  
+  // Fetch managers when dialog opens
   useEffect(() => {
-    const fetchManagers = async () => {
-      if (open) {
-        try {
-          setIsLoading(true);
-          const users = await userService.getUsersByRole('manager');
-          console.log('Available managers:', users);
-          const availableManagers = users.filter(u => u.id !== user.id);
-          setManagers(availableManagers);
-          
-          // Set the current manager as selected if it exists
-          if (user.managerId) {
-            setSelectedManagerId(user.managerId);
-          } else {
-            setSelectedManagerId('');
-          }
-        } catch (error) {
-          console.error('Error fetching managers:', error);
-          toast({
-            title: 'Error',
-            description: 'Failed to load managers',
-            variant: 'destructive'
-          });
-        } finally {
-          setIsLoading(false);
-        }
-      }
-    };
-    
-    fetchManagers();
-  }, [open, user.id, user.managerId, toast]);
+    if (open) {
+      fetchManagers();
+    }
+  }, [open]);
   
-  const handleChangeManager = async () => {
+  const fetchManagers = async () => {
     try {
       setIsLoading(true);
+      const fetchedManagers = await userService.getUsersByRole('manager');
+      setManagers(fetchedManagers);
       
-      // Check if the user needs a manager based on their role
-      if ((user.role === 'employee' || user.role === 'team-lead') && !selectedManagerId) {
-        toast({
-          title: 'Manager Required',
-          description: 'Please select a manager for this user.',
-          variant: 'destructive'
-        });
-        return;
+      // Pre-select current manager if exists
+      if (user.managerId) {
+        setSelectedManagerId(user.managerId);
+      } else if (fetchedManagers.length > 0) {
+        setSelectedManagerId(fetchedManagers[0].id);
       }
-      
-      console.log(`Changing manager for user ${user.id} to ${selectedManagerId}`);
-      
-      // Update the user's manager
-      await userService.updateUserManager(user.id, selectedManagerId || null);
-      
-      toast({
-        title: 'Manager Updated',
-        description: 'User\'s manager has been updated successfully.'
-      });
-      
-      // Close dialog and refresh the user list
-      setOpen(false);
-      onManagerChanged();
-    } catch (error: any) {
+    } catch (error) {
+      console.error('Error fetching managers:', error);
       toast({
         title: 'Error',
-        description: error.message || 'Failed to update manager',
+        description: 'Failed to load managers. Please try again.',
         variant: 'destructive'
       });
     } finally {
@@ -105,62 +72,95 @@ export function ChangeManagerDialog({ user, onManagerChanged }: ChangeManagerDia
     }
   };
   
+  const handleUpdateManager = async () => {
+    if (!selectedManagerId) {
+      toast({
+        title: 'Error',
+        description: 'Please select a manager.',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      await userService.updateUserManager(user.id, selectedManagerId);
+      
+      toast({
+        title: 'Manager updated',
+        description: `Manager has been updated successfully for ${user.name}.`
+      });
+      
+      setOpen(false);
+      onManagerChanged();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update manager.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Check if current user has permission to change managers
+  if (!permissions.canAssignTeamLeads && currentUserRole !== 'admin') {
+    return null;
+  }
+  
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="px-2 text-muted-foreground"
-          disabled={user.role === 'admin' || user.role === 'manager'}
-          title={user.role === 'admin' || user.role === 'manager' ? 
-            'Admins and Managers don\'t have managers' : 
-            'Change manager'}
-        >
-          <UserCircle2 className="h-4 w-4 mr-1" />
-          Change Manager
-        </Button>
+        <Button variant="outline" size="sm">Change Manager</Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Change Manager for {user.name}</DialogTitle>
+          <DialogTitle>Change Manager</DialogTitle>
           <DialogDescription>
-            Select a new manager for this {user.role.replace('-', ' ')}.
+            Select a new manager for {user.name}.
           </DialogDescription>
         </DialogHeader>
-        
-        <div className="py-6">
-          <Select
-            value={selectedManagerId}
-            onValueChange={setSelectedManagerId}
-            disabled={isLoading}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select a manager" />
-            </SelectTrigger>
-            <SelectContent>
-              {managers.length === 0 ? (
-                <SelectItem value="no-managers-available">No available managers</SelectItem>
-              ) : (
-                managers.map(manager => (
-                  <SelectItem key={manager.id} value={manager.id}>
-                    {manager.name}
-                  </SelectItem>
-                ))
-              )}
-            </SelectContent>
-          </Select>
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Select
+              value={selectedManagerId}
+              onValueChange={setSelectedManagerId}
+              disabled={isLoading}
+            >
+              <SelectTrigger className="col-span-4">
+                <SelectValue placeholder="Select a manager" />
+              </SelectTrigger>
+              <SelectContent>
+                {managers.length === 0 ? (
+                  <SelectItem value="no-managers" disabled>No managers available</SelectItem>
+                ) : (
+                  managers.map(manager => (
+                    <SelectItem 
+                      key={manager.id} 
+                      value={manager.id}
+                      // Disable selecting the same manager
+                      disabled={user.managerId === manager.id}
+                    >
+                      {manager.name}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-        
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
+          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
           <Button 
-            onClick={handleChangeManager} 
-            disabled={isLoading || managers.length === 0}
+            type="button"
+            onClick={handleUpdateManager}
+            disabled={isLoading || managers.length === 0 || user.managerId === selectedManagerId}
           >
-            {isLoading ? "Updating..." : "Save Changes"}
+            {isLoading ? "Updating..." : "Update Manager"}
           </Button>
         </DialogFooter>
       </DialogContent>
