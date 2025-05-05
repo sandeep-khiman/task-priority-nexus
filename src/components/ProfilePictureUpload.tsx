@@ -6,6 +6,7 @@ import { User } from '@/types/user';
 import { UploadCloud, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface ProfilePictureUploadProps {
   user: User;
@@ -14,6 +15,7 @@ interface ProfilePictureUploadProps {
 
 export function ProfilePictureUpload({ user, onUploadSuccess }: ProfilePictureUploadProps) {
   const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Function to get user initials for the avatar fallback
@@ -29,27 +31,46 @@ export function ProfilePictureUpload({ user, onUploadSuccess }: ProfilePictureUp
   // Function to ensure the avatars bucket exists
   const ensureAvatarsBucketExists = async () => {
     try {
-      // Check if bucket exists
-      const { data: bucketData, error: bucketError } = await supabase.storage.getBucket('avatars');
+      // First check if the bucket exists
+      const { data: buckets, error: getBucketsError } = await supabase.storage.listBuckets();
       
-      if (bucketError && bucketError.message.includes('not found')) {
+      if (getBucketsError) {
+        console.error("Error listing buckets:", getBucketsError);
+        return false;
+      }
+      
+      // Check if avatars bucket exists in the bucket list
+      const avatarsBucketExists = buckets?.some(bucket => bucket.name === 'avatars');
+      
+      if (!avatarsBucketExists) {
         console.log('Avatars bucket not found, creating it');
-        // Create the bucket
+        
+        // Create bucket with public access
         const { error: createBucketError } = await supabase.storage.createBucket('avatars', {
           public: true
         });
         
         if (createBucketError) {
           console.error('Failed to create avatars bucket:', createBucketError);
+          
+          // Additional logging for debugging
+          if (createBucketError.message.includes('new row violates row-level security policy')) {
+            console.error('Permission error: The current user lacks permissions to create storage buckets');
+            throw new Error('Insufficient permissions to create storage bucket. Please contact your administrator.');
+          }
+          
           throw createBucketError;
         }
         
         console.log('Avatars bucket created successfully');
+      } else {
+        console.log('Avatars bucket already exists');
       }
       
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error ensuring avatars bucket exists:', error);
+      setError(error.message || 'Failed to create or verify the avatars bucket');
       return false;
     }
   };
@@ -60,14 +81,14 @@ export function ProfilePictureUpload({ user, onUploadSuccess }: ProfilePictureUp
       return;
     }
     
+    setError(null);
+    setUploading(true);
     const file = files[0];
     const fileExt = file.name.split('.').pop();
     const filePath = `${user.id}-${Date.now()}.${fileExt}`;
     
-    setUploading(true);
-    
     try {
-      // Ensure the avatars bucket exists
+      // First ensure the bucket exists
       const bucketExists = await ensureAvatarsBucketExists();
       
       if (!bucketExists) {
@@ -118,6 +139,7 @@ export function ProfilePictureUpload({ user, onUploadSuccess }: ProfilePictureUp
       });
     } catch (error: any) {
       console.error('Error uploading image:', error);
+      setError(error.message || 'Failed to upload profile picture');
       toast({
         title: 'Upload failed',
         description: error.message || 'Failed to upload profile picture',
@@ -139,6 +161,13 @@ export function ProfilePictureUpload({ user, onUploadSuccess }: ProfilePictureUp
           </AvatarFallback>
         )}
       </Avatar>
+      
+      {error && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
       
       <div className="flex items-center">
         <Button 
