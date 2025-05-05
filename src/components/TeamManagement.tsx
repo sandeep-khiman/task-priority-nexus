@@ -81,33 +81,31 @@ export function TeamManagement({ }: TeamManagementProps) {
   
   const fetchData = async () => {
     setIsLoading(true);
-    
+  
     try {
-      // Fetch all users with their roles
-      const fetchedUsers = await userService.getUsers();
-      console.log('Fetched users:', fetchedUsers);
+      const [fetchedUsers, fetchedTeams] = await Promise.all([
+        userService.getUsers(),
+        teamService.getTeams()
+      ]);
+  
+      // Set users
       setUsers(fetchedUsers);
-      
-      // Set user categories based on roles
       setManagers(fetchedUsers.filter(user => user.role === 'manager'));
       setTeamLeads(fetchedUsers.filter(user => user.role === 'team-lead'));
       setEmployees(fetchedUsers.filter(user => user.role === 'employee'));
-      
-      // Fetch teams
-      const fetchedTeams = await teamService.getTeams();
-      console.log('Fetched teams:', fetchedTeams);
+  
+      // Set teams
       setTeams(fetchedTeams);
-      
-      // Create team assignments mapping
+  
+      // Create assignment map
       const assignments: Record<string, string[]> = {};
-      
       fetchedTeams.forEach(team => {
         if (team.leadId && team.memberIds) {
           assignments[team.leadId] = team.memberIds;
         }
       });
-      
       setTeamAssignments(assignments);
+  
     } catch (error) {
       console.error("Error fetching data:", error);
       toast({
@@ -119,7 +117,7 @@ export function TeamManagement({ }: TeamManagementProps) {
       setIsLoading(false);
     }
   };
-
+  
   // Function to create a new team
   const handleCreateTeam = async (teamData: CreateTeamPayload) => {
     try {
@@ -191,6 +189,14 @@ export function TeamManagement({ }: TeamManagementProps) {
           title: "Error",
           description: "Team not found. Please refresh and try again.",
           variant: "destructive"
+        });
+        return;
+      }
+      if (team.memberIds?.includes(employeeId)) {
+        toast({
+          title: "Already Assigned",
+          description: "Employee is already in this team.",
+          variant: "default"
         });
         return;
       }

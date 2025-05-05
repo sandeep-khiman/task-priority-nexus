@@ -28,20 +28,13 @@ function TaskCard({ task }: TaskCardProps) {
   const canModifyTask = () => {
     if (!profile) return false;
     
-    // Admins can modify all tasks
     if (profile.role === 'admin') return true;
-    
-    // Managers can modify tasks of users who report to them
     if (profile.role === 'manager') {
-      return true; // Simplified for now
+      return true; 
     }
-    
-    // Team leads can modify tasks of their team members
     if (profile.role === 'team-lead') {
-      return true; // Simplified for now
+      return true; 
     }
-    
-    // Users can modify their own tasks
     return task.assignedToId === profile.id || task.createdById === profile.id;
   };
   
@@ -53,11 +46,8 @@ function TaskCard({ task }: TaskCardProps) {
     e.dataTransfer.effectAllowed = 'move';
     setIsDragging(true);
     
-    // Create a ghost image that's not visible
     if (cardRef.current) {
       const rect = cardRef.current.getBoundingClientRect();
-      
-      // Use a transparent image for drag ghost to prevent text selection issues
       const dragGhost = document.createElement('div');
       dragGhost.style.position = 'absolute';
       dragGhost.style.top = '-1000px';

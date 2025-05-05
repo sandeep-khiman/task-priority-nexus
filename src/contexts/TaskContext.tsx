@@ -122,7 +122,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Update tasks with appropriate quadrants based on due dates
       const updatedTasks = fetchedTasks.map(task => ({
         ...task,
-        quadrant: determineTaskQuadrant(task, settings)
+        quadrant: task.quadrant ?? determineTaskQuadrant(task, settings)
       }));
       
       setTasks(updatedTasks);
