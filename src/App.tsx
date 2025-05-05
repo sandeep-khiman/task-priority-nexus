@@ -13,6 +13,7 @@ import Dashboard from '@/pages/Dashboard';
 import AdminSettings from '@/pages/AdminSettings';
 import ManagerDashboard from '@/pages/ManagerDashboard';
 import UserProfile from '@/pages/UserProfile';
+import Teams from '@/pages/Teams';
 import NotFound from '@/pages/NotFound';
 
 // Create a client
@@ -33,6 +34,7 @@ function App() {
               <Route path="/manager" element={<ManagerDashboard />} />
               <Route path="/profile" element={<UserProfile />} />
               <Route path="/profile/:userId" element={<UserProfile />} />
+              <Route path="/teams" element={<Teams />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
             <Toaster />

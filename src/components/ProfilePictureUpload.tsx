@@ -26,6 +26,34 @@ export function ProfilePictureUpload({ user, onUploadSuccess }: ProfilePictureUp
       .substring(0, 2);
   };
 
+  // Function to ensure the avatars bucket exists
+  const ensureAvatarsBucketExists = async () => {
+    try {
+      // Check if bucket exists
+      const { data: bucketData, error: bucketError } = await supabase.storage.getBucket('avatars');
+      
+      if (bucketError && bucketError.message.includes('not found')) {
+        console.log('Avatars bucket not found, creating it');
+        // Create the bucket
+        const { error: createBucketError } = await supabase.storage.createBucket('avatars', {
+          public: true
+        });
+        
+        if (createBucketError) {
+          console.error('Failed to create avatars bucket:', createBucketError);
+          throw createBucketError;
+        }
+        
+        console.log('Avatars bucket created successfully');
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error ensuring avatars bucket exists:', error);
+      return false;
+    }
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) {
@@ -39,14 +67,11 @@ export function ProfilePictureUpload({ user, onUploadSuccess }: ProfilePictureUp
     setUploading(true);
     
     try {
-      // Check if storage bucket exists (creating if necessary)
-      const { data: bucketData, error: bucketError } = await supabase.storage.getBucket('avatars');
+      // Ensure the avatars bucket exists
+      const bucketExists = await ensureAvatarsBucketExists();
       
-      if (bucketError && bucketError.message.includes('not found')) {
-        // Create the bucket if it doesn't exist
-        await supabase.storage.createBucket('avatars', {
-          public: true,
-        });
+      if (!bucketExists) {
+        throw new Error('Failed to create or verify the avatars bucket');
       }
       
       // Upload the file
@@ -55,6 +80,7 @@ export function ProfilePictureUpload({ user, onUploadSuccess }: ProfilePictureUp
         .upload(filePath, file);
         
       if (uploadError) {
+        console.error('Upload error:', uploadError);
         throw uploadError;
       }
       
@@ -67,6 +93,8 @@ export function ProfilePictureUpload({ user, onUploadSuccess }: ProfilePictureUp
         throw new Error('Failed to get public URL for the uploaded image');
       }
       
+      console.log('File uploaded successfully, public URL:', urlData.publicUrl);
+      
       // Update user profile with the avatar URL
       const { error: updateError } = await supabase
         .from('profiles')
@@ -77,9 +105,11 @@ export function ProfilePictureUpload({ user, onUploadSuccess }: ProfilePictureUp
         .eq('id', user.id);
         
       if (updateError) {
+        console.error('Profile update error:', updateError);
         throw updateError;
       }
       
+      console.log('Profile updated with new avatar URL');
       onUploadSuccess(urlData.publicUrl);
       
       toast({
