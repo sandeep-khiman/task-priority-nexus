@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -69,7 +70,10 @@ export function ProfilePictureUpload({ user, onUploadSuccess }: ProfilePictureUp
       // Update user profile with the avatar URL
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ avatar_url: urlData.publicUrl })
+        .update({ 
+          avatar_url: urlData.publicUrl,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', user.id);
         
       if (updateError) {
