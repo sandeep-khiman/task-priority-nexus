@@ -12,7 +12,7 @@ export interface User {
   managerName?: string;
   teamIds?: string[];
   teamNames?: string[];
-  avatarUrl?: string;
+  avatar_url?: string;
 }
 
 export interface Team {
@@ -110,7 +110,7 @@ export interface AuthContextType extends AuthState {
   updateUserProfile: (userId: string, updates: {
     name?: string;
     email?: string;
-    avatarUrl?: string;
+    avatar_url?: string;
   }) => Promise<boolean>;
   refreshProfile: () => Promise<void>;
 }

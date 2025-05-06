@@ -22,7 +22,7 @@ export function UserProfileForm({ user, currentUserId, onProfileUpdated }: UserP
   const [name, setName] = useState(user.name);
   const [email, setEmail] = useState(user.email);
   const [isLoading, setIsLoading] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl);
+  const [avatar_url, setavatar_url] = useState(user.avatar_url);
   const { toast } = useToast();
   const { updateUserProfile } = useAuth();
 
@@ -38,7 +38,7 @@ export function UserProfileForm({ user, currentUserId, onProfileUpdated }: UserP
   useEffect(() => {
     setName(user.name);
     setEmail(user.email);
-    setAvatarUrl(user.avatarUrl);
+    setavatar_url(user.avatar_url);
   }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -64,7 +64,7 @@ export function UserProfileForm({ user, currentUserId, onProfileUpdated }: UserP
           ...user,
           name,
           email,
-          avatarUrl,
+          avatar_url,
         });
       }
     } catch (error: any) {
@@ -80,16 +80,16 @@ export function UserProfileForm({ user, currentUserId, onProfileUpdated }: UserP
   };
 
   const handleAvatarUploadSuccess = async (url: string) => {
-    setAvatarUrl(url);
+    setavatar_url(url);
     
     try {
       // Update the avatar URL through our AuthContext
-      await updateUserProfile(user.id, { avatarUrl: url });
+      await updateUserProfile(user.id, { avatar_url: url });
       
       if (onProfileUpdated) {
         onProfileUpdated({
           ...user,
-          avatarUrl: url,
+          avatar_url: url,
         });
       }
     } catch (error) {
@@ -109,7 +109,7 @@ export function UserProfileForm({ user, currentUserId, onProfileUpdated }: UserP
         <div className="grid gap-6">
           <div className="flex flex-col items-center">
             <ProfilePictureUpload 
-              user={{...user, avatarUrl}} 
+              user={{...user, avatar_url}} 
               onUploadSuccess={handleAvatarUploadSuccess} 
             />
             

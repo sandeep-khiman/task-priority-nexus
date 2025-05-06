@@ -9,7 +9,7 @@ import { getPriorityColor, getPriorityLabel } from '@/services/taskUtils';
 import { TaskCompletionToggle } from './TaskCompletionToggle';
 import { Button } from './ui/button';
 import { useTaskContext } from '@/contexts/TaskContext';
-import { Calendar, Trash2, UserCheck } from 'lucide-react';
+import { Calendar, Trash2, UserCheck,UserPlus } from 'lucide-react';
 import { EditTaskDialog } from './EditTaskDialog';
 import { useState, useRef } from 'react';
 import { Badge } from './ui/badge';
@@ -92,13 +92,26 @@ function TaskCard({ task }: TaskCardProps) {
         </div>
       </CardHeader>
       <CardContent className="p-2 pt-0 pb-1">
-        {task.assignedToName && (
-          <Badge variant="outline" className="mb-1 text-xs flex items-center gap-1">
-            <UserCheck size={10} />
-            {task.assignedToName}
-          </Badge>
-        )}
-        
+      
+
+      <div className="flex items-center gap-2 mb-1">
+  {task.assignedToName && (
+    <Badge variant="outline" className="text-xs flex items-center gap-1">
+      <UserCheck size={10} />
+      <label >Assigned to :</label>
+      {task.assignedToName}
+    </Badge>
+  )}
+  {task.createdByName && (
+    <Badge variant="outline" className="text-xs flex items-center gap-1">
+      <UserPlus size={10} />
+      <label >Assigned by :</label>
+      {task.createdByName}
+    </Badge>
+  )}
+</div>
+
+
         {task.notes && (
           <p className="text-xs text-muted-foreground mt-1 mb-1 line-clamp-2">{task.notes}</p>
         )}

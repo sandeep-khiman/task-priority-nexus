@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getUserPermissions } from '@/utils/permissionUtils';
-import { KeyRound } from 'lucide-react';
+import { KeyRound, ListTodo, LogOut, User } from 'lucide-react';
 
 export function Header() {
   const { isAuthenticated, profile, logout } = useAuth();
@@ -83,8 +83,8 @@ export function Header() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-9 w-9 rounded-full">
                 <Avatar className="h-9 w-9">
-                  {profile.avatarUrl ? (
-                    <AvatarImage src={profile.avatarUrl} alt={profile.name} />
+                  {profile.avatar_url ? (
+                    <AvatarImage src={profile.avatar_url} alt={profile.name} />
                   ) : (
                     <AvatarFallback className="text-xs bg-primary text-primary-foreground">
                       {getUserInitials(profile.name)}
@@ -104,10 +104,16 @@ export function Header() {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link to="/profile">My Profile</Link>
+                <Link to="/profile">
+                  <User className="mr-2 h-4 w-4" />
+                  My Profile
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link to="/tasks">My Tasks</Link>
+                <Link to="/tasks">
+                <ListTodo className="mr-2 h-4 w-4" />
+                  My Tasks
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link to="/reset-password" className="flex items-center">
@@ -120,6 +126,7 @@ export function Header() {
                 onClick={logout}
                 className="text-red-500 cursor-pointer"
               >
+                <LogOut className="mr-2 h-4 w-4" />
                 Log Out
               </DropdownMenuItem>
             </DropdownMenuContent>

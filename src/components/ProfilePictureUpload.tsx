@@ -10,7 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface ProfilePictureUploadProps {
   user: User;
-  onUploadSuccess: (avatarUrl: string) => void;
+  onUploadSuccess: (avatar_url: string) => void;
 }
 
 export function ProfilePictureUpload({ user, onUploadSuccess }: ProfilePictureUploadProps) {
@@ -91,6 +91,8 @@ export function ProfilePictureUpload({ user, onUploadSuccess }: ProfilePictureUp
         description: error.message || 'Failed to upload profile picture',
         variant: 'destructive',
       });
+      console.log(error.message);
+      
     } finally {
       setUploading(false);
     }
@@ -99,8 +101,8 @@ export function ProfilePictureUpload({ user, onUploadSuccess }: ProfilePictureUp
   return (
     <div className="flex flex-col items-center gap-4">
       <Avatar className="h-24 w-24">
-        {user.avatarUrl ? (
-          <AvatarImage src={user.avatarUrl} alt={user.name} />
+        {user.avatar_url ? (
+          <AvatarImage src={user.avatar_url} alt={user.name} />
         ) : (
           <AvatarFallback className="text-lg bg-primary text-primary-foreground">
             {getUserInitials(user.name)}

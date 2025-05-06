@@ -34,7 +34,7 @@ interface AuthContextType extends AuthState {
   updateUserProfile: (userId: string, updates: {
     name?: string;
     email?: string;
-    avatarUrl?: string;
+    avatar_url?: string;
   }) => Promise<boolean>;
   refreshProfile: () => Promise<void>;
 }
@@ -87,7 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         createdAt: data.created_at,
         updatedAt: data.updated_at,
         managerId: data.manager_id,
-        avatarUrl: data.avatar_url,
+        avatar_url: data.avatar_url,
       } as User : null;
     } catch (error) {
       console.error('Exception fetching profile:', error);
@@ -315,7 +315,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateUserProfile = async (userId: string, updates: {
     name?: string;
     email?: string;
-    avatarUrl?: string;
+    avatar_url?: string;
   }) => {
     if (!authState.user) return;
     
@@ -348,6 +348,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return true;
     } catch (error: any) {
       setAuthState(prev => ({ ...prev, isLoading: false }));
+      console.error(error);
+      
       toast({
         title: 'Update Failed',
         description: error.message || 'Failed to update profile',

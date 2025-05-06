@@ -29,12 +29,14 @@ export function CreateTeamDialog({ users, teamLeads, managers, onCreateTeam }: C
   const [isCreating, setIsCreating] = useState(false);
   
   // Filter employees only
-  const employees = users.filter(user => user.role === 'employee');
+  const employees = users.filter(user => (user.role === 'employee' && user.managerId==selectedManagerId ) );
 
   // Set manager automatically if current user is a manager
   useEffect(() => {
     if (profile?.role === 'manager' && !selectedManagerId) {
       setSelectedManagerId(profile.id);
+      console.log(profile.id);
+      
     }
   }, [profile, selectedManagerId]);
 
@@ -64,20 +66,24 @@ export function CreateTeamDialog({ users, teamLeads, managers, onCreateTeam }: C
 
     try {
       const managerId = selectedManagerId || (profile?.id || '');
+      console.log(managerId);
       
       // First create the team in the database
       const { data: teamData, error: teamError } = await supabase
-        .from('teams')
-        .insert({
-          name: teamName,
-          manager_id: managerId,
-        })
-        .select('id')
-        .single();
-        
-      if (teamError) {
-        throw teamError;
-      }
+    .from('teams')
+    .insert({
+      name: teamName,
+      manager_id: managerId,
+    })
+    .select('id')
+    .single();
+    console.log("----------------------------------------------",teamData);
+if (teamError) {
+  console.log("++++++++++++++++++++++++++++++++",teamError);
+    console.error('Error inserting team:', teamError);
+} else {
+    console.log('Inserted team ID:', teamData.id);
+}
       
       if (!teamData) {
         throw new Error('Failed to create team');
@@ -89,6 +95,7 @@ export function CreateTeamDialog({ users, teamLeads, managers, onCreateTeam }: C
         manager_id: managerId,
         memberIds: []
       };
+      console.log(newTeam);
       
       // If there's a team lead, create a relation
       if (selectedLeadId) {
@@ -102,6 +109,7 @@ export function CreateTeamDialog({ users, teamLeads, managers, onCreateTeam }: C
           
         if (leadError) {
           console.error('Error assigning team lead:', leadError);
+          
         } else {
           newTeam.leadId = selectedLeadId;
         }
@@ -132,6 +140,8 @@ export function CreateTeamDialog({ users, teamLeads, managers, onCreateTeam }: C
         leadId: newTeam.leadId,
         memberIds: newTeam.memberIds || []
       };
+      
+      console.log(newTeamPayload);
       
       // Call the onCreateTeam handler with the new team
       onCreateTeam(newTeamPayload);
@@ -227,11 +237,14 @@ export function CreateTeamDialog({ users, teamLeads, managers, onCreateTeam }: C
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">None</SelectItem>
-                {teamLeads.map((lead) => (
-                  <SelectItem key={lead.id} value={lead.id}>
-                    {lead.name}
-                  </SelectItem>
-                ))}
+                {teamLeads
+  .filter(lead => lead.managerId === selectedManagerId)
+  .map((lead) => (
+    <SelectItem key={lead.id} value={lead.id}>
+      {lead.name}
+    </SelectItem>
+))}
+
               </SelectContent>
             </Select>
           </div>

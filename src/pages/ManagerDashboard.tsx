@@ -69,7 +69,7 @@ export default function ManagerDashboard() {
                       name: m.profiles.name,
                       email: m.profiles.email,
                       role: m.profiles.role,
-                      avatarUrl: m.profiles.avatar_url,
+                      avatar_url: m.profiles.avatar_url,
                       createdAt: "", // These fields aren't needed for the task assignment
                       updatedAt: ""
                     } as User

@@ -22,7 +22,7 @@ export const userService = {
       managerId: profile.manager_id,
       createdAt: profile.created_at,
       updatedAt: profile.updated_at,
-      avatarUrl: profile.avatar_url
+      avatar_url: profile.avatar_url
     })) || [];
   },
 
@@ -49,7 +49,7 @@ export const userService = {
       managerId: data.manager_id,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
-      avatarUrl: data.avatar_url
+      avatar_url: data.avatar_url
     };
   },
 
@@ -74,7 +74,7 @@ export const userService = {
       managerId: profile.manager_id,
       createdAt: profile.created_at,
       updatedAt: profile.updated_at,
-      avatarUrl: profile.avatar_url
+      avatar_url: profile.avatar_url
     })) || [];
   },
 
@@ -161,7 +161,7 @@ export const userService = {
       managerId: member.profiles.manager_id,
       createdAt: member.profiles.created_at,
       updatedAt: member.profiles.updated_at,
-      avatarUrl: member.profiles.avatar_url
+      avatar_url: member.profiles.avatar_url
     }));
   },
 
@@ -222,12 +222,12 @@ export const userService = {
   },
 
   // Update user avatar URL
-  async updateUserAvatar(userId: string, avatarUrl: string): Promise<void> {
+  async updateUserAvatar(userId: string, avatar_url: string): Promise<void> {
     try {
       const { error } = await supabase
         .from('profiles')
         .update({ 
-          avatar_url: avatarUrl,
+          avatar_url: avatar_url,
           updated_at: new Date().toISOString()
         })
         .eq('id', userId);
