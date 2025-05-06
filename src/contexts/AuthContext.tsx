@@ -259,22 +259,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
-      await supabase.auth.signOut();
+      const { data: { session } } = await supabase.auth.getSession();
+  
+      if (session) {
+        await supabase.auth.signOut();
+      }
+  
       navigate('/login');
-      toast({ 
+      toast({
         title: 'Logged out',
-        description: 'You have been successfully logged out.'
+        description: 'You have been successfully logged out.',
       });
-      // Auth state will be updated by the listener
     } catch (error: any) {
       toast({
         title: 'Logout failed',
         description: error.message || 'An unexpected error occurred',
-        variant: 'destructive'
+        variant: 'destructive',
       });
     }
   };
-
+  
+  
   const updateUserRole = async (userId: string, role: UserRole) => {
     setAuthState({ ...authState, isLoading: true });
     

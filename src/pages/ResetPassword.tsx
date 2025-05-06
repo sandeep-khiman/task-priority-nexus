@@ -1,15 +1,20 @@
-
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+  Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle,
+} from '@/components/ui/card';
+import {
+  Alert, AlertDescription, AlertTitle,
+} from '@/components/ui/alert';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Header } from '@/components/Header';
-import { CheckCircle, AlertCircle, KeyRound, Loader2 } from 'lucide-react';
+import {
+  CheckCircle, AlertCircle, KeyRound, Loader2,
+} from 'lucide-react';
 
 export default function ResetPassword() {
   const [email, setEmail] = useState('');
@@ -20,14 +25,14 @@ export default function ResetPassword() {
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<'request' | 'reset'>('request');
   const { toast } = useToast();
+  const navigate = useNavigate();
 
-  // Check if we're on the reset page with a token
-  useState(() => {
+  useEffect(() => {
     const hash = window.location.hash;
-    if (hash && hash.includes('type=recovery')) {
+    if (hash.includes('type=recovery')) {
       setMode('reset');
     }
-  });
+  }, []);
 
   const handleRequestReset = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,17 +40,13 @@ export default function ResetPassword() {
     setIsLoading(true);
 
     try {
-      if (!email.trim()) {
-        throw new Error('Please enter your email address');
-      }
+      if (!email.trim()) throw new Error('Please enter your email address');
 
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       setResetSent(true);
       toast({
@@ -53,10 +54,11 @@ export default function ResetPassword() {
         description: 'Check your email for the password reset link',
       });
     } catch (err: any) {
-      setError(err.message || 'Failed to send reset link');
+      const msg = err?.message || 'Failed to send reset link';
+      setError(msg);
       toast({
         title: 'Reset failed',
-        description: err.message || 'Failed to send reset link',
+        description: msg,
         variant: 'destructive',
       });
     } finally {
@@ -70,40 +72,25 @@ export default function ResetPassword() {
     setIsLoading(true);
 
     try {
-      if (!newPassword.trim()) {
-        throw new Error('Please enter a new password');
-      }
+      if (!newPassword.trim()) throw new Error('Please enter a new password');
+      if (newPassword !== confirmPassword) throw new Error('Passwords do not match');
+      if (newPassword.length < 6) throw new Error('Password must be at least 6 characters long');
 
-      if (newPassword !== confirmPassword) {
-        throw new Error('Passwords do not match');
-      }
-
-      if (newPassword.length < 6) {
-        throw new Error('Password must be at least 6 characters long');
-      }
-
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword,
-      });
-
-      if (error) {
-        throw error;
-      }
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
 
       toast({
         title: 'Password updated',
         description: 'Your password has been reset successfully',
       });
 
-      // Redirect to login after successful reset
-      setTimeout(() => {
-        window.location.href = '/login';
-      }, 2000);
+      setTimeout(() => navigate('/login'), 2000);
     } catch (err: any) {
-      setError(err.message || 'Failed to reset password');
+      const msg = err?.message || 'Failed to reset password';
+      setError(msg);
       toast({
         title: 'Reset failed',
-        description: err.message || 'Failed to reset password',
+        description: msg,
         variant: 'destructive',
       });
     } finally {
