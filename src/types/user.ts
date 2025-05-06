@@ -1,3 +1,4 @@
+
 export type UserRole = 'admin' | 'manager' | 'team-lead' | 'employee';
 
 export interface User {
@@ -90,8 +91,17 @@ export interface ProfileData {
   avatar_url?: string;
 }
 
-// Update the AuthContextType interface if it exists
-// If it doesn't, then define it in the AuthContext.tsx file
+// Define AuthState interface here instead of importing it
+export interface AuthState {
+  isAuthenticated: boolean;
+  user: any | null; // Using 'any' for the Supabase user type
+  session: any | null; // Using 'any' for the Supabase session type
+  profile: User | null;
+  isLoading: boolean;
+  error: string | null;
+}
+
+// Update the AuthContextType interface
 export interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string, role?: UserRole) => Promise<void>;
