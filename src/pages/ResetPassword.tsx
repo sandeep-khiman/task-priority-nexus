@@ -1,145 +1,242 @@
 
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { Header } from '@/components/Header';
+import { CheckCircle, AlertCircle, KeyRound, Loader2 } from 'lucide-react';
 
 export default function ResetPassword() {
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const navigate = useNavigate();
+  const [mode, setMode] = useState<'request' | 'reset'>('request');
   const { toast } = useToast();
-  
-  // Check if the URL contains a hash indicating a password reset
-  useEffect(() => {
+
+  // Check if we're on the reset page with a token
+  useState(() => {
     const hash = window.location.hash;
-    if (!hash || !hash.includes('access_token=')) {
-      // If there's no token, show an error
-      setError('Invalid or expired password reset link.');
+    if (hash && hash.includes('type=recovery')) {
+      setMode('reset');
     }
-  }, []);
-  
-  const handleSubmit = async (e: React.FormEvent) => {
+  });
+
+  const handleRequestReset = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
-      return;
-    }
-    
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
-      return;
-    }
-    
-    setLoading(true);
     setError(null);
-    
+    setIsLoading(true);
+
     try {
-      const { data, error } = await supabase.auth.updateUser({
-        password: password
+      if (!email.trim()) {
+        throw new Error('Please enter your email address');
+      }
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
       });
-      
+
       if (error) {
         throw error;
       }
-      
-      setSuccess(true);
+
+      setResetSent(true);
       toast({
-        title: 'Password Updated',
-        description: 'Your password has been successfully reset.',
+        title: 'Reset link sent',
+        description: 'Check your email for the password reset link',
       });
-      
-      // After a short delay, redirect to the login page
-      setTimeout(() => {
-        navigate('/login');
-      }, 3000);
     } catch (err: any) {
-      console.error('Password reset error:', err);
-      setError(err.message || 'Failed to reset password. Try again later.');
+      setError(err.message || 'Failed to send reset link');
       toast({
-        title: 'Password Reset Error',
-        description: err.message || 'An unexpected error occurred',
-        variant: 'destructive'
+        title: 'Reset failed',
+        description: err.message || 'Failed to send reset link',
+        variant: 'destructive',
       });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
-  
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      if (!newPassword.trim()) {
+        throw new Error('Please enter a new password');
+      }
+
+      if (newPassword !== confirmPassword) {
+        throw new Error('Passwords do not match');
+      }
+
+      if (newPassword.length < 6) {
+        throw new Error('Password must be at least 6 characters long');
+      }
+
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: 'Password updated',
+        description: 'Your password has been reset successfully',
+      });
+
+      // Redirect to login after successful reset
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 2000);
+    } catch (err: any) {
+      setError(err.message || 'Failed to reset password');
+      toast({
+        title: 'Reset failed',
+        description: err.message || 'Failed to reset password',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const renderRequestForm = () => (
+    <form onSubmit={handleRequestReset}>
+      <div className="grid gap-4">
+        <div className="grid gap-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Enter your email address"
+            disabled={isLoading || resetSent}
+            required
+          />
+        </div>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {resetSent && (
+          <Alert className="bg-green-50 text-green-800 border-green-200">
+            <CheckCircle className="h-4 w-4" />
+            <AlertTitle>Success</AlertTitle>
+            <AlertDescription>
+              Password reset link has been sent to your email address. Please check your inbox.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <Button type="submit" disabled={isLoading || resetSent}>
+          {isLoading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Sending...
+            </>
+          ) : resetSent ? (
+            'Link Sent'
+          ) : (
+            'Send Reset Link'
+          )}
+        </Button>
+      </div>
+    </form>
+  );
+
+  const renderResetForm = () => (
+    <form onSubmit={handleResetPassword}>
+      <div className="grid gap-4">
+        <div className="grid gap-2">
+          <Label htmlFor="password">New Password</Label>
+          <Input
+            id="password"
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="Enter new password"
+            disabled={isLoading}
+            required
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="confirm-password">Confirm Password</Label>
+          <Input
+            id="confirm-password"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="Confirm new password"
+            disabled={isLoading}
+            required
+          />
+        </div>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        <Button type="submit" disabled={isLoading}>
+          {isLoading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Updating...
+            </>
+          ) : (
+            'Reset Password'
+          )}
+        </Button>
+      </div>
+    </form>
+  );
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md">
-        <Card>
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold">Reset Your Password</CardTitle>
-            <CardDescription>
-              Enter your new password below
+    <div className="min-h-screen flex flex-col">
+      <Header />
+      <div className="flex-1 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-center flex justify-center items-center">
+              <KeyRound className="h-6 w-6 mr-2" />
+              {mode === 'request' ? 'Reset Password' : 'Set New Password'}
+            </CardTitle>
+            <CardDescription className="text-center">
+              {mode === 'request'
+                ? 'Enter your email to receive a password reset link'
+                : 'Enter your new password'}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {error && (
-              <Alert variant="destructive" className="mb-4">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            
-            {success ? (
-              <Alert className="mb-4">
-                <AlertDescription>
-                  Your password has been successfully reset. You will be redirected to the login page shortly.
-                </AlertDescription>
-              </Alert>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="password">New Password</Label>
-                  <Input 
-                    id="password" 
-                    type="password" 
-                    placeholder="••••••••" 
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="confirm-password">Confirm Password</Label>
-                  <Input 
-                    id="confirm-password" 
-                    type="password" 
-                    placeholder="••••••••"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required 
-                  />
-                </div>
-                <Button 
-                  type="submit" 
-                  className="w-full" 
-                  disabled={loading || !!error}
-                >
-                  {loading ? 'Updating...' : 'Reset Password'}
-                </Button>
-              </form>
-            )}
+            {mode === 'request' ? renderRequestForm() : renderResetForm()}
           </CardContent>
-          <CardFooter>
-            <Button 
-              variant="link" 
-              className="w-full" 
-              onClick={() => navigate('/login')}
+          <CardFooter className="flex justify-center">
+            <Link
+              to="/login"
+              className="text-sm text-muted-foreground hover:text-primary"
             >
-              Back to Login
-            </Button>
+              Return to login
+            </Link>
           </CardFooter>
         </Card>
       </div>

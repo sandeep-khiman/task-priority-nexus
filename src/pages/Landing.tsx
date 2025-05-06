@@ -16,6 +16,11 @@ export default function Landing() {
     }
   }, [isAuthenticated, navigate]);
 
+  const handleGetStarted = () => {
+    // Redirect to login page instead of register
+    navigate('/login');
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -31,11 +36,11 @@ export default function Landing() {
                 Delegate, track, and complete tasks efficiently.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button size="lg" onClick={() => navigate('/login')} asChild>
-                  <a>Get Started</a>
+                <Button size="lg" onClick={handleGetStarted}>
+                  Get Started
                 </Button>
-                <Button size="lg" variant="outline" onClick={() => navigate('/login')} asChild>
-                  <a>Log In</a>
+                <Button size="lg" variant="outline" onClick={() => navigate('/login')}>
+                  Log In
                 </Button>
               </div>
             </div>

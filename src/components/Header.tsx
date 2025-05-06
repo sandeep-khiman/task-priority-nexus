@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getUserPermissions } from '@/utils/permissionUtils';
+import { KeyRound } from 'lucide-react';
 
 export function Header() {
   const { isAuthenticated, profile, logout } = useAuth();
@@ -30,6 +31,15 @@ export function Header() {
   const permissions = profile ? getUserPermissions(profile.role) : {
     canViewTeams: false,
     canCreateTeams: false
+  };
+
+  const handlePasswordReset = async () => {
+    try {
+      // Redirect to the reset password page
+      window.location.href = '/reset-password';
+    } catch (error) {
+      console.error('Error redirecting to reset password:', error);
+    }
   };
 
   return (
@@ -98,6 +108,12 @@ export function Header() {
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link to="/tasks">My Tasks</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/reset-password" className="flex items-center">
+                  <KeyRound className="mr-2 h-4 w-4" />
+                  Reset Password
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem

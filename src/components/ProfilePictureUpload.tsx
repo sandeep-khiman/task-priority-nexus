@@ -28,53 +28,6 @@ export function ProfilePictureUpload({ user, onUploadSuccess }: ProfilePictureUp
       .substring(0, 2);
   };
 
-  // Function to ensure the avatars bucket exists
-  const ensureAvatarsBucketExists = async () => {
-    try {
-      // First check if the bucket exists
-      const { data: buckets, error: getBucketsError } = await supabase.storage.listBuckets();
-      
-      if (getBucketsError) {
-        console.error("Error listing buckets:", getBucketsError);
-        return false;
-      }
-      
-      // Check if avatars bucket exists in the bucket list
-      const avatarsBucketExists = buckets?.some(bucket => bucket.name === 'avatars');
-      
-      if (!avatarsBucketExists) {
-        console.log('Avatars bucket not found, creating it');
-        
-        // Create bucket with public access
-        const { error: createBucketError } = await supabase.storage.createBucket('avatars', {
-          public: true
-        });
-        
-        if (createBucketError) {
-          console.error('Failed to create avatars bucket:', createBucketError);
-          
-          // Additional logging for debugging
-          if (createBucketError.message.includes('new row violates row-level security policy')) {
-            console.error('Permission error: The current user lacks permissions to create storage buckets');
-            throw new Error('Insufficient permissions to create storage bucket. Please contact your administrator.');
-          }
-          
-          throw createBucketError;
-        }
-        
-        console.log('Avatars bucket created successfully');
-      } else {
-        console.log('Avatars bucket already exists');
-      }
-      
-      return true;
-    } catch (error: any) {
-      console.error('Error ensuring avatars bucket exists:', error);
-      setError(error.message || 'Failed to create or verify the avatars bucket');
-      return false;
-    }
-  };
-
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) {
@@ -88,15 +41,8 @@ export function ProfilePictureUpload({ user, onUploadSuccess }: ProfilePictureUp
     const filePath = `${user.id}-${Date.now()}.${fileExt}`;
     
     try {
-      // First ensure the bucket exists
-      const bucketExists = await ensureAvatarsBucketExists();
-      
-      if (!bucketExists) {
-        throw new Error('Failed to create or verify the avatars bucket');
-      }
-      
-      // Upload the file
-      const { error: uploadError } = await supabase.storage
+      // Upload the file directly - bucket should now exist with proper permissions
+      const { error: uploadError, data } = await supabase.storage
         .from('avatars')
         .upload(filePath, file);
         
