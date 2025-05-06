@@ -10,6 +10,7 @@ import { userService } from '@/services/userService';
 import { User } from '@/types/user';
 import { Badge } from '@/components/ui/badge';
 import { getUserPermissions } from '@/utils/permissionUtils';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface UserProfileFormProps {
   user: User;
@@ -23,6 +24,7 @@ export function UserProfileForm({ user, currentUserId, onProfileUpdated }: UserP
   const [isLoading, setIsLoading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl);
   const { toast } = useToast();
+  const { updateUserProfile } = useAuth();
 
   const isOwnProfile = user.id === currentUserId;
   const permissions = getUserPermissions(
@@ -54,17 +56,10 @@ export function UserProfileForm({ user, currentUserId, onProfileUpdated }: UserP
     setIsLoading(true);
     
     try {
-      await userService.updateUserProfile(user.id, {
-        name,
-        email,
-      });
+      // Use the new AuthContext method for updating profiles
+      const success = await updateUserProfile(user.id, { name, email });
       
-      toast({
-        title: "Profile Updated",
-        description: "Your profile has been updated successfully.",
-      });
-      
-      if (onProfileUpdated) {
+      if (success && onProfileUpdated) {
         onProfileUpdated({
           ...user,
           name,
@@ -84,13 +79,21 @@ export function UserProfileForm({ user, currentUserId, onProfileUpdated }: UserP
     }
   };
 
-  const handleAvatarUploadSuccess = (url: string) => {
+  const handleAvatarUploadSuccess = async (url: string) => {
     setAvatarUrl(url);
-    if (onProfileUpdated) {
-      onProfileUpdated({
-        ...user,
-        avatarUrl: url,
-      });
+    
+    try {
+      // Update the avatar URL through our AuthContext
+      await updateUserProfile(user.id, { avatarUrl: url });
+      
+      if (onProfileUpdated) {
+        onProfileUpdated({
+          ...user,
+          avatarUrl: url,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to update avatar:', error);
     }
   };
 

@@ -1,4 +1,3 @@
-
 export type UserRole = 'admin' | 'manager' | 'team-lead' | 'employee';
 
 export interface User {
@@ -89,4 +88,19 @@ export interface ProfileData {
   updated_at: string;
   manager_id?: string;
   avatar_url?: string;
+}
+
+// Update the AuthContextType interface if it exists
+// If it doesn't, then define it in the AuthContext.tsx file
+export interface AuthContextType extends AuthState {
+  login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, name: string, role?: UserRole) => Promise<void>;
+  logout: () => Promise<void>;
+  updateUserRole: (userId: string, role: UserRole) => Promise<void>;
+  updateUserProfile: (userId: string, updates: {
+    name?: string;
+    email?: string;
+    avatarUrl?: string;
+  }) => Promise<boolean>;
+  refreshProfile: () => Promise<void>;
 }

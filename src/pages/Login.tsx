@@ -10,15 +10,19 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { UserRole } from '@/types/user';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Login() {
   const [isLogin, setIsLogin] = useState(true);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [role, setRole] = useState<UserRole>('employee');
   const { login, register, isAuthenticated, isLoading, error } = useAuth();
   const { toast } = useToast();
+  const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [resetEmailLoading, setResetEmailLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,8 +43,107 @@ export default function Login() {
     }
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email) {
+      toast({
+        title: 'Email Required',
+        description: 'Please enter your email address',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
+    setResetEmailLoading(true);
+    
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      
+      if (error) {
+        throw error;
+      }
+      
+      setResetEmailSent(true);
+      toast({
+        title: 'Password Reset Email Sent',
+        description: 'Check your email for the password reset link',
+      });
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      toast({
+        title: 'Password Reset Error',
+        description: error.message || 'An unexpected error occurred',
+        variant: 'destructive'
+      });
+    } finally {
+      setResetEmailLoading(false);
+    }
+  };
+
   if (isAuthenticated) {
     return <Navigate to="/" />;
+  }
+
+  if (isForgotPassword) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="w-full max-w-md">
+          <Card>
+            <CardHeader className="space-y-1">
+              <CardTitle className="text-2xl font-bold">Reset Your Password</CardTitle>
+              <CardDescription>
+                Enter your email and we'll send you a link to reset your password
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {resetEmailSent ? (
+                <Alert className="mb-4">
+                  <AlertDescription>
+                    If an account with that email exists, we've sent a password reset link. Please check your inbox.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <form onSubmit={handleForgotPassword} className="space-y-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="reset-email">Email</Label>
+                    <Input
+                      id="reset-email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <Button 
+                    type="submit" 
+                    className="w-full" 
+                    disabled={resetEmailLoading}
+                  >
+                    {resetEmailLoading ? 'Sending...' : 'Send Reset Link'}
+                  </Button>
+                </form>
+              )}
+            </CardContent>
+            <CardFooter>
+              <Button
+                variant="link"
+                className="w-full"
+                onClick={() => {
+                  setIsForgotPassword(false);
+                  setResetEmailSent(false);
+                }}
+              >
+                Back to Login
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -122,6 +225,17 @@ export default function Login() {
                   ? 'Loading...' 
                   : isLogin ? 'Sign In' : 'Create Account'}
               </Button>
+
+              {isLogin && (
+                <Button
+                  type="button"
+                  variant="link"
+                  className="w-full p-0 h-auto font-normal text-sm"
+                  onClick={() => setIsForgotPassword(true)}
+                >
+                  Forgot password?
+                </Button>
+              )}
             </form>
           </CardContent>
           <CardFooter>

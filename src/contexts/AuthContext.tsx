@@ -31,6 +31,11 @@ interface AuthContextType extends AuthState {
   register: (email: string, password: string, name: string, role?: UserRole) => Promise<void>;
   logout: () => Promise<void>;
   updateUserRole: (userId: string, role: UserRole) => Promise<void>;
+  updateUserProfile: (userId: string, updates: {
+    name?: string;
+    email?: string;
+    avatarUrl?: string;
+  }) => Promise<boolean>;
   refreshProfile: () => Promise<void>;
 }
 
@@ -274,29 +279,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAuthState({ ...authState, isLoading: true });
     
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ role, updated_at: new Date().toISOString() })
-        .eq('id', userId);
+      // Use the edge function for updating roles
+      const { error: rpcError } = await supabase.functions.invoke('update-user-role', {
+        body: { user_id: userId, new_role: role }
+      });
       
-      if (error) {
-        toast({
-          title: 'Error',
-          description: 'Failed to update user role: ' + error.message,
-          variant: 'destructive'
-        });
-      } else {
-        // If this is the current user, update their profile
-        if (authState.user && authState.user.id === userId) {
-          await refreshProfile();
-        }
-        
-        setAuthState(prev => ({ ...prev, isLoading: false }));
-        toast({
-          title: 'Success',
-          description: 'User role updated successfully.'
-        });
+      if (rpcError) {
+        throw rpcError;
       }
+      
+      // If this is the current user, update their profile
+      if (authState.user && authState.user.id === userId) {
+        await refreshProfile();
+      }
+      
+      setAuthState(prev => ({ ...prev, isLoading: false }));
+      toast({
+        title: 'Success',
+        description: 'User role updated successfully.'
+      });
     } catch (error: any) {
       setAuthState(prev => ({
         ...prev,
@@ -311,12 +312,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateUserProfile = async (userId: string, updates: {
+    name?: string;
+    email?: string;
+    avatarUrl?: string;
+  }) => {
+    if (!authState.user) return;
+    
+    setAuthState(prev => ({ ...prev, isLoading: true }));
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId);
+      
+      if (error) {
+        throw error;
+      }
+      
+      // If updating current user's profile, refresh it
+      if (authState.user.id === userId) {
+        await refreshProfile();
+      }
+      
+      setAuthState(prev => ({ ...prev, isLoading: false }));
+      toast({
+        title: 'Profile Updated',
+        description: 'Your profile has been updated successfully.'
+      });
+      
+      return true;
+    } catch (error: any) {
+      setAuthState(prev => ({ ...prev, isLoading: false }));
+      toast({
+        title: 'Update Failed',
+        description: error.message || 'Failed to update profile',
+        variant: 'destructive'
+      });
+      
+      return false;
+    }
+  };
+
   const value: AuthContextType = {
     ...authState,
     login,
     register,
     logout,
     updateUserRole,
+    updateUserProfile,
     refreshProfile
   };
 

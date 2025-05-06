@@ -31,11 +31,11 @@ export default function Landing() {
                 Delegate, track, and complete tasks efficiently.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button size="lg" asChild>
-                  <a href="/register">Get Started</a>
+                <Button size="lg" onClick={() => navigate('/login')} asChild>
+                  <a>Get Started</a>
                 </Button>
-                <Button size="lg" variant="outline" asChild>
-                  <a href="/login">Log In</a>
+                <Button size="lg" variant="outline" onClick={() => navigate('/login')} asChild>
+                  <a>Log In</a>
                 </Button>
               </div>
             </div>
