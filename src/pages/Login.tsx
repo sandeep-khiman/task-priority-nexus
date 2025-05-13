@@ -1,32 +1,46 @@
-
-import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/components/ui/use-toast';
-import { UserRole } from '@/types/user';
-import { supabase } from '@/integrations/supabase/client';
+import { useState } from "react";
+import { Navigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/components/ui/use-toast";
+import { UserRole } from "@/types/user";
+import { supabase } from "@/integrations/supabase/client";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function Login() {
   const [isLogin, setIsLogin] = useState(true);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [role, setRole] = useState<UserRole>('employee');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [role, setRole] = useState<UserRole>("employee");
   const { login, register, isAuthenticated, isLoading, error } = useAuth();
   const { toast } = useToast();
   const [resetEmailSent, setResetEmailSent] = useState(false);
   const [resetEmailLoading, setResetEmailLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       if (isLogin) {
         await login(email, password);
@@ -34,49 +48,49 @@ export default function Login() {
         await register(email, password, name, role);
       }
     } catch (error: any) {
-      console.error('Authentication error:', error);
+      console.error("Authentication error:", error);
       toast({
-        title: 'Authentication Error',
-        description: error.message || 'An unexpected error occurred',
-        variant: 'destructive'
+        title: "Authentication Error",
+        description: error.message || "An unexpected error occurred",
+        variant: "destructive",
       });
     }
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email) {
       toast({
-        title: 'Email Required',
-        description: 'Please enter your email address',
-        variant: 'destructive'
+        title: "Email Required",
+        description: "Please enter your email address",
+        variant: "destructive",
       });
       return;
     }
-    
+
     setResetEmailLoading(true);
-    
+
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
-      
+
       if (error) {
         throw error;
       }
-      
+
       setResetEmailSent(true);
       toast({
-        title: 'Password Reset Email Sent',
-        description: 'Check your email for the password reset link',
+        title: "Password Reset Email Sent",
+        description: "Check your email for the password reset link",
       });
     } catch (error: any) {
-      console.error('Password reset error:', error);
+      console.error("Password reset error:", error);
       toast({
-        title: 'Password Reset Error',
-        description: error.message || 'An unexpected error occurred',
-        variant: 'destructive'
+        title: "Password Reset Error",
+        description: error.message || "An unexpected error occurred",
+        variant: "destructive",
       });
     } finally {
       setResetEmailLoading(false);
@@ -93,16 +107,20 @@ export default function Login() {
         <div className="w-full max-w-md">
           <Card>
             <CardHeader className="space-y-1">
-              <CardTitle className="text-2xl font-bold">Reset Your Password</CardTitle>
+              <CardTitle className="text-2xl font-bold">
+                Reset Your Password
+              </CardTitle>
               <CardDescription>
-                Enter your email and we'll send you a link to reset your password
+                Enter your email and we'll send you a link to reset your
+                password
               </CardDescription>
             </CardHeader>
             <CardContent>
               {resetEmailSent ? (
                 <Alert className="mb-4">
                   <AlertDescription>
-                    If an account with that email exists, we've sent a password reset link. Please check your inbox.
+                    If an account with that email exists, we've sent a password
+                    reset link. Please check your inbox.
                   </AlertDescription>
                 </Alert>
               ) : (
@@ -118,12 +136,12 @@ export default function Login() {
                       required
                     />
                   </div>
-                  <Button 
-                    type="submit" 
-                    className="w-full" 
+                  <Button
+                    type="submit"
+                    className="w-full"
                     disabled={resetEmailLoading}
                   >
-                    {resetEmailLoading ? 'Sending...' : 'Send Reset Link'}
+                    {resetEmailLoading ? "Sending..." : "Send Reset Link"}
                   </Button>
                 </form>
               )}
@@ -152,10 +170,12 @@ export default function Login() {
         <Card>
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold">
-              {isLogin ? 'Sign in to your account' : 'Create an account'}
+              {isLogin ? "Sign in to your account" : "Create an account"}
             </CardTitle>
             <CardDescription>
-              {isLogin ? 'Enter your email and password to sign in' : 'Enter your details to create an account'}
+              {isLogin
+                ? "Enter your email and password to sign in"
+                : "Enter your details to create an account"}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -168,9 +188,9 @@ export default function Login() {
               {!isLogin && (
                 <div className="grid gap-2">
                   <Label htmlFor="name">Name</Label>
-                  <Input 
-                    id="name" 
-                    placeholder="John Doe" 
+                  <Input
+                    id="name"
+                    placeholder="John Doe"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
@@ -179,10 +199,10 @@ export default function Login() {
               )}
               <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
-                <Input 
-                  id="email" 
-                  type="email" 
-                  placeholder="demo@example.com" 
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="demo@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -190,21 +210,31 @@ export default function Login() {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="password">Password</Label>
-                <Input 
-                  id="password" 
-                  type="password" 
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required 
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground focus:outline-none"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
-              
+
               {!isLogin && (
                 <div className="grid gap-2">
                   <Label htmlFor="role">Role</Label>
-                  <Select 
-                    value={role} 
+                  <Select
+                    value={role}
                     onValueChange={(value) => setRole(value as UserRole)}
                   >
                     <SelectTrigger id="role">
@@ -219,11 +249,13 @@ export default function Login() {
                   </Select>
                 </div>
               )}
-              
+
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading 
-                  ? 'Loading...' 
-                  : isLogin ? 'Sign In' : 'Create Account'}
+                {isLoading
+                  ? "Loading..."
+                  : isLogin
+                  ? "Sign In"
+                  : "Create Account"}
               </Button>
 
               {isLogin && (
@@ -239,9 +271,9 @@ export default function Login() {
             </form>
           </CardContent>
           <CardFooter>
-            <Button 
-              variant="link" 
-              className="w-full" 
+            <Button
+              variant="link"
+              className="w-full"
               onClick={() => setIsLogin(!isLogin)}
             >
               {isLogin
@@ -253,8 +285,13 @@ export default function Login() {
         {/* Demo login info - This would be removed in a production environment */}
         <div className="mt-4 p-4 bg-muted rounded-lg text-sm">
           <h3 className="font-medium mb-2">Demo Instructions:</h3>
-          <p className="mb-2">You can register new accounts with different roles to test the functionality.</p>
-          <p>First user to register as admin will have full access to the system.</p>
+          <p className="mb-2">
+            You can register new accounts with different roles to test the
+            functionality.
+          </p>
+          <p>
+            First user to register as admin will have full access to the system.
+          </p>
         </div>
       </div>
     </div>

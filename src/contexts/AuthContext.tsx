@@ -241,7 +241,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           title: 'Registration successful',
           description: 'Welcome to Task Priority Nexus!'
         });
-        navigate('/');
+        navigate('/login');
       }
     } catch (error: any) {
       setAuthState({ 

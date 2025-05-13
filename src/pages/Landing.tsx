@@ -35,14 +35,7 @@ export default function Landing() {
                 A collaborative task management platform designed for teams of all sizes. 
                 Delegate, track, and complete tasks efficiently.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Button size="lg" onClick={handleGetStarted}>
-                  Get Started
-                </Button>
-                <Button size="lg" variant="outline" onClick={() => navigate('/login')}>
-                  Log In
-                </Button>
-              </div>
+              
             </div>
             
             <div className="rounded-lg bg-muted p-8 w-full max-w-md">

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Task } from '@/types/task';
@@ -21,20 +20,21 @@ interface TaskCompletionToggleProps {
 export function TaskCompletionToggle({ task }: TaskCompletionToggleProps) {
   const { toggleTaskCompletion } = useTaskContext();
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [nextCheckedState, setNextCheckedState] = useState<boolean | undefined>(undefined);
   
   const handleToggle = (checked: boolean) => {
-    if (task.completed && !checked) {
-      // If we're unchecking a completed task, show confirmation
-      setShowConfirmation(true);
-    } else {
-      // If we're checking an uncompleted task, just toggle it
-      toggleTaskCompletion(task.id);
-    }
+    setNextCheckedState(checked);
+    setShowConfirmation(true);
   };
   
-  const handleConfirmUncheck = () => {
+  const handleConfirm = () => {
     toggleTaskCompletion(task.id);
     setShowConfirmation(false);
+  };
+
+  const handleCancel = () => {
+    setShowConfirmation(false);
+    setNextCheckedState(undefined);
   };
   
   return (
@@ -48,15 +48,18 @@ export function TaskCompletionToggle({ task }: TaskCompletionToggleProps) {
       <AlertDialog open={showConfirmation} onOpenChange={setShowConfirmation}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Undo completion?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {nextCheckedState ? 'Mark as completed?' : 'Mark as incomplete?'}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to mark this task as incomplete? 
-              This will reset the task's completion status.
+              {nextCheckedState 
+                ? 'Are you sure you want to mark this task as completed?' 
+                : 'Are you sure you want to mark this task as incomplete?'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmUncheck}>
+            <AlertDialogCancel onClick={handleCancel}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirm}>
               Confirm
             </AlertDialogAction>
           </AlertDialogFooter>
