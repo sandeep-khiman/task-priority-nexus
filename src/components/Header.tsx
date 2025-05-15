@@ -1,5 +1,4 @@
-
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,72 +11,117 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getUserPermissions } from '@/utils/permissionUtils';
-import { KeyRound, ListTodo, LogOut, User } from 'lucide-react';
+import {
+  KeyRound,
+  ListTodo,
+  LogOut,
+  User,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+// ✅ Custom hook for active path check
+function useIsActive(path: string, exact = false) {
+  const location = useLocation();
+  if (exact) {
+    return location.pathname === path;
+  }
+  return location.pathname === path || location.pathname.startsWith(`${path}/`);
+}
 
 export function Header() {
   const { isAuthenticated, profile, logout } = useAuth();
+  const location = useLocation();
 
-  // Function to get user initials for avatar fallback
-  const getUserInitials = (name: string): string => {
-    return name
-      ?.split(' ')
-      .map(part => part[0])
-      .join('')
-      .toUpperCase()
-      .substring(0, 2) || 'U';
-  };
+  const getUserInitials = (name: string): string =>
+    name?.split(' ').map((part) => part[0]).join('').toUpperCase().substring(0, 2) || 'U';
 
-  // Get permissions based on user role
-  const permissions = profile ? getUserPermissions(profile.role) : {
-    canViewTeams: false,
-    canCreateTeams: false
-  };
+  const formatRole = (role: string): string =>
+    role.replace('-', ' ').replace(/\b\w/g, (l) => l.toUpperCase());
 
-  const handlePasswordReset = async () => {
-    try {
-      // Redirect to the reset password page
-      window.location.href = '/reset-password';
-    } catch (error) {
-      console.error('Error redirecting to reset password:', error);
-    }
-  };
+  const permissions = profile
+    ? getUserPermissions(profile.role)
+    : {
+        canViewTeams: false,
+        canCreateTeams: false,
+      };
 
   return (
     <header className="border-b">
       <div className="container flex h-16 items-center justify-between">
+        {/* Left Side */}
         <div className="flex items-center gap-6">
           <Link to="/" className="font-bold text-lg">
             TaskFlow
           </Link>
+
           {isAuthenticated && profile && (
             <nav className="hidden md:flex items-center gap-6">
-              <Link 
-                to="/dashboard" 
-                className="text-sm font-medium transition-colors hover:text-primary"
+              <Link
+                to="/dashboard"
+                className={cn(
+                  'px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2',
+                  useIsActive('/dashboard',true) ? 'bg-primary text-white'
+                    : 'text-gray-600 hover:text-primary'
+                )}
               >
                 Dashboard
               </Link>
-              
+
               {permissions.canViewTeams && (
-                <Link 
-                  to={profile.role === 'manager' ? "/manager" : "/teams"} 
-                  className="text-sm font-medium transition-colors hover:text-primary"
+                <Link
+                  to={profile.role === 'manager' ? '/manager' : '/teams'}
+                  className={cn(
+                    'px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2',
+                    useIsActive(profile.role === 'manager' ? '/manager' : '/teams',true)? 'bg-primary text-white'
+                    : 'text-gray-600 hover:text-primary'
+                  )}
                 >
                   Teams
                 </Link>
               )}
-              
+
               {profile.role === 'admin' && (
-                <Link 
-                  to="/admin" 
-                  className="text-sm font-medium transition-colors hover:text-primary"
+                <Link
+                  to="/admin"
+                  className={cn(
+                    'px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2',
+                    useIsActive('/admin', true)
+                    ? 'bg-primary text-white'
+                    : 'text-gray-600 hover:text-primary'
+                  )}
                 >
                   Admin
                 </Link>
               )}
+
+              {/* Report Links */}
+              <Link
+                to="/report"
+                className={cn(
+                  'px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2',
+                  useIsActive('/report', true)
+                    ? 'bg-primary text-white'
+                    : 'text-gray-600 hover:text-primary'
+                )}
+              >
+                Submit Report
+              </Link>
+              <Link
+                to="/reportDashboard"
+                className={cn(
+                  'px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2',
+                  useIsActive('/reportDashboard', true)
+                    ? 'bg-primary text-white'
+                    : 'text-gray-600 hover:text-primary'
+                )}
+              >
+                Report Dashboard
+              </Link>
             </nav>
           )}
         </div>
+
+        {/* Right Side */}
         {isAuthenticated && profile ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -93,35 +137,42 @@ export function Header() {
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
+
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>
                 <div className="flex flex-col">
                   <span>{profile.name}</span>
                   <span className="text-xs text-muted-foreground">
-                    {profile.role.charAt(0).toUpperCase() + profile.role.slice(1).replace('-', ' ')}
+                    {formatRole(profile.role)}
                   </span>
                 </div>
               </DropdownMenuLabel>
+
               <DropdownMenuSeparator />
+
               <DropdownMenuItem asChild>
                 <Link to="/profile">
                   <User className="mr-2 h-4 w-4" />
                   My Profile
                 </Link>
               </DropdownMenuItem>
+
               <DropdownMenuItem asChild>
                 <Link to="/tasks">
-                <ListTodo className="mr-2 h-4 w-4" />
+                  <ListTodo className="mr-2 h-4 w-4" />
                   My Tasks
                 </Link>
               </DropdownMenuItem>
+
               <DropdownMenuItem asChild>
                 <Link to="/reset-password" className="flex items-center">
                   <KeyRound className="mr-2 h-4 w-4" />
                   Reset Password
                 </Link>
               </DropdownMenuItem>
+
               <DropdownMenuSeparator />
+
               <DropdownMenuItem
                 onClick={logout}
                 className="text-red-500 cursor-pointer"

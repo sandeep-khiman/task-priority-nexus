@@ -1,7 +1,7 @@
-
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { TaskProvider } from '@/contexts/TaskContext';
+import { ReportProvider } from '@/contexts/ReportContext'; // <-- Add this
 import { Toaster } from '@/components/ui/toaster';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -16,8 +16,10 @@ import ManagerDashboard from '@/pages/ManagerDashboard';
 import UserProfile from '@/pages/UserProfile';
 import Teams from '@/pages/Teams';
 import NotFound from '@/pages/NotFound';
+import ReportIndex from './pages/ReportIndex';
+import ReportForm from './pages/ReportForm';
+import ReportDashboard from './pages/ReportDashboard';
 
-// Create a client
 const queryClient = new QueryClient();
 
 function App() {
@@ -26,19 +28,24 @@ function App() {
       <Router>
         <AuthProvider>
           <TaskProvider>
-            <Routes>
-              <Route path="/" element={<Landing />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/admin" element={<AdminSettings />} />
-              <Route path="/manager" element={<ManagerDashboard />} />
-              <Route path="/profile" element={<UserProfile />} />
-              <Route path="/profile/:userId" element={<UserProfile />} />
-              <Route path="/teams" element={<Teams />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <ReportProvider> {/* ✅ Wrap routes that need reports */}
+              <Routes>
+                <Route path="/" element={<Landing />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/admin" element={<AdminSettings />} />
+                <Route path="/manager" element={<ManagerDashboard />} />
+                <Route path="/profile" element={<UserProfile />} />
+                <Route path="/profile/:userId" element={<UserProfile />} />
+                <Route path="/teams" element={<Teams />} />
+                <Route path="/reportIndex" element={<ReportIndex />} />
+                <Route path="/report" element={<ReportForm />} />
+                <Route path="/reportDashboard" element={<ReportDashboard />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </ReportProvider>
             <Toaster />
           </TaskProvider>
         </AuthProvider>
