@@ -1,4 +1,3 @@
-
 import * as React from "react"
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
 import { DayPicker } from "react-day-picker"
@@ -57,9 +56,10 @@ function Calendar({
         day_hidden: "invisible",
         ...classNames,
       }}
-      components={{
-        IconLeft: ({ ...props }) => <ChevronLeftIcon className="h-4 w-4" />,
-        IconRight: ({ ...props }) => <ChevronRightIcon className="h-4 w-4" />
+      icons={{
+        // new prop name replacing `components`
+        previous: () => <ChevronLeftIcon className="h-4 w-4" />,
+        next: () => <ChevronRightIcon className="h-4 w-4" />,
       }}
       {...props}
     />

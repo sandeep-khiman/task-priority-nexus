@@ -63,6 +63,9 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
+				leave: '#ea384c',
+				halfday: '#ffd166',
+				completed: '#2ec4b6',
         danger: 'hsl(var(--danger))',
         warning: 'hsl(var(--warning))',
         success: 'hsl(var(--success))',

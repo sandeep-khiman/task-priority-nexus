@@ -94,18 +94,7 @@ export function Header() {
                 </Link>
               )}
 
-              {/* Report Links */}
-              <Link
-                to="/report"
-                className={cn(
-                  'px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2',
-                  useIsActive('/report', true)
-                    ? 'bg-primary text-white'
-                    : 'text-gray-600 hover:text-primary'
-                )}
-              >
-                Submit Report
-              </Link>
+              
               <Link
                 to="/reportDashboard"
                 className={cn(
@@ -116,6 +105,18 @@ export function Header() {
                 )}
               >
                 Report Dashboard
+              </Link>
+
+              <Link
+                to="/employee-management"
+                className={cn(
+                  'px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2',
+                  useIsActive('/employee-management', true)
+                    ? 'bg-primary text-white'
+                    : 'text-gray-600 hover:text-primary'
+                )}
+              >
+                Employee
               </Link>
             </nav>
           )}

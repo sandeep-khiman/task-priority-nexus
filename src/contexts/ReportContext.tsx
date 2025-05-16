@@ -1,8 +1,9 @@
 
 import { createContext, useContext, useState, ReactNode } from "react";
-import { Report, Task } from "@/types";
-import { format } from "date-fns";
+import { Report, ReportingTask } from "@/types/report";
+import { format, isSameDay } from "date-fns";
 import { toast } from "sonner";
+import { v4 as uuidv4 } from "uuid";
 
 interface ReportContextType {
   reports: Report[];
@@ -28,7 +29,7 @@ export const ReportProvider = ({ children }: { children: ReactNode }) => {
   const addReport = (report: Report) => {
     // Check if a report already exists for this date
     const existingReportIndex = reports.findIndex(r => 
-      format(r.date, 'yyyy-MM-dd') === format(report.date, 'yyyy-MM-dd')
+      isSameDay(new Date(r.date), new Date(report.date))
     );
     
     if (existingReportIndex !== -1) {
@@ -56,7 +57,7 @@ export const ReportProvider = ({ children }: { children: ReactNode }) => {
 
   const getReportByDate = (date: Date) => {
     return reports.find(report => 
-      format(report.date, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')
+      isSameDay(new Date(report.date), date)
     );
   };
 

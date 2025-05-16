@@ -17,8 +17,8 @@ import UserProfile from '@/pages/UserProfile';
 import Teams from '@/pages/Teams';
 import NotFound from '@/pages/NotFound';
 import ReportIndex from './pages/ReportIndex';
-import ReportForm from './pages/ReportForm';
 import ReportDashboard from './pages/ReportDashboard';
+import EmployeeManagement from './pages/EmployeeManagement';
 
 const queryClient = new QueryClient();
 
@@ -41,8 +41,8 @@ function App() {
                 <Route path="/profile/:userId" element={<UserProfile />} />
                 <Route path="/teams" element={<Teams />} />
                 <Route path="/reportIndex" element={<ReportIndex />} />
-                <Route path="/report" element={<ReportForm />} />
                 <Route path="/reportDashboard" element={<ReportDashboard />} />
+                <Route path="/employee-management" element={<EmployeeManagement />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </ReportProvider>

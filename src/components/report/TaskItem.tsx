@@ -1,5 +1,5 @@
 
-import { Task } from "@/types";
+import { FormTask } from "@/types/report";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,15 +11,15 @@ import { Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TaskItemProps {
-  task: Task;
-  onChange: (task: Task) => void;
+  task: FormTask;
+  onChange: (task: FormTask) => void;
   onDelete: () => void;
   disabled?: boolean;
   index: number;
 }
 
 const TaskItem = ({ task, onChange, onDelete, disabled = false, index }: TaskItemProps) => {
-  const handleChange = (key: keyof Task, value: string | number) => {
+  const handleChange = (key: keyof FormTask, value: string | number) => {
     onChange({ ...task, [key]: value });
   };
 
