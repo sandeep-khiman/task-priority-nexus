@@ -17,3 +17,12 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface due_date_change{
+  id:string;
+  created_at :string;
+  task_id:string;
+  last_due_date:string;
+  reason_to_change:string;
+  updated_due_date:string;
+}

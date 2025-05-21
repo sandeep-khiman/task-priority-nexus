@@ -1,9 +1,15 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CalendarIcon, Edit, Users } from "lucide-react";
+import {
+  CalendarIcon,
+  Edit,
+  File,
+  FileArchive,
+  LucideFileText,
+  Users,
+} from "lucide-react";
 import { format } from "date-fns";
 
 import {
@@ -43,15 +49,30 @@ import { Task, Quadrant } from "@/types/task";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
 
-const formSchema = z.object({
-  title: z.string().min(1, { message: "Title is required" }),
-  notes: z.string().optional(),
-  icon: z.string().optional(),
-  quadrant: z.number().int().min(1).max(5),
-  dueDate: z.date().nullable(),
-  assignedToId: z.string().min(1, { message: "Please select an assignee" }),
-  progress: z.number().int().min(0).max(100),
-});
+const formSchema = z
+  .object({
+    title: z.string().min(1, { message: "Title is required" }),
+    notes: z.string().optional(),
+    icon: z.string().optional(),
+    quadrant: z.number().int().min(1).max(5),
+    dueDate: z.date().nullable(),
+    lastDueDate: z.date().nullable(),
+    dueDateReason: z.string().optional(),
+    assignedToId: z.string().min(1, { message: "Please select an assignee" }),
+    progress: z.number().int().min(0).max(100),
+  })
+  .refine(
+    (data) =>
+      !data.dueDate ||
+      !data.lastDueDate ||
+      data.dueDate.getTime() === data.lastDueDate.getTime()
+        ? true
+        : !!data.dueDateReason?.trim(),
+    {
+      message: "Reason required for changing due date",
+      path: ["dueDateReason"],
+    }
+  );
 
 type FormValues = z.infer<typeof formSchema>;
 
@@ -61,6 +82,10 @@ interface EditTaskDialogProps {
 
 export function EditTaskDialog({ task }: EditTaskDialogProps) {
   const [open, setOpen] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [dueDateChanged, setDueDateChanged] = useState(false);
+  const [dueDateChangeReason, setDueDateChangeReason] = useState("");
+
   const { updateTask, getVisibleUsers } = useTaskContext();
   const { toast } = useToast();
   const visibleUsers = getVisibleUsers();
@@ -75,25 +100,29 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
       dueDate: task.dueDate ? new Date(task.dueDate) : null,
       assignedToId: task.assignedToId,
       progress: task.progress,
+      lastDueDate: task.createdAt ? new Date(task.createdAt) : null,
+      dueDateReason: "",
     },
   });
-
+  const data = form.getValues()
+  console.log(data)
   const onSubmit = async (values: FormValues) => {
     try {
       const selectedUser = visibleUsers.find(
         (user) => user.id === values.assignedToId
       );
+console.log(selectedUser,"--------------",values);
 
       if (!selectedUser) {
         toast({
           title: "Error",
           description: "Selected user not found",
-          variant: "destructive"
+          variant: "destructive",
         });
         return;
       }
 
-      await updateTask({
+       updateTask({
         ...task,
         title: values.title,
         notes: values.notes || "",
@@ -103,11 +132,15 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
         assignedToId: selectedUser.id,
         assignedToName: selectedUser.name,
         progress: values.progress,
+        dueDateChangeReason:
+          values.dueDate?.toISOString() !== task.dueDate
+            ? dueDateChangeReason
+            : undefined,
       });
 
       toast({
         title: "Success",
-        description: "Task updated successfully"
+        description: "Task updated successfully",
       });
       setOpen(false);
     } catch (error) {
@@ -115,7 +148,7 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
       toast({
         title: "Error",
         description: "Failed to update task",
-        variant: "destructive"
+        variant: "destructive",
       });
     }
   };
@@ -129,18 +162,26 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
   ];
 
   const iconOptions = [
-    "📋", "📱", "💻", "📊", "📝", "📬", "🔍",
-    "⚡", "📞", "🔔", "📌", "🗓️", "🔧", "👨‍💻"
+    "📋",
+    "📱",
+    "💻",
+    "📊",
+    "📝",
+    "📬",
+    "🔍",
+    "⚡",
+    "📞",
+    "🔔",
+    "📌",
+    "🗓️",
+    "🔧",
+    "👨‍💻",
   ];
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild onClick={(e) => e.stopPropagation()}>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6 mr-1"
-        >
+        <Button variant="ghost" size="icon" className="h-6 w-6 mr-1">
           <Edit className="h-3 w-3" />
           <span className="sr-only">Edit Task</span>
         </Button>
@@ -151,7 +192,7 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
         </DialogHeader>
         <Form {...form}>
           <form
-            onSubmit={form.handleSubmit(onSubmit)}
+          
             className="space-y-4 mt-2"
           >
             <div className="grid grid-cols-4 gap-4">
@@ -245,38 +286,164 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
 
               <FormField
                 control={form.control}
-                name="dueDate"
+                name="assignedToId"
                 render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Due Date</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
+                  <FormItem className="flex-col">
+                    <FormLabel>Assigned To</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a team member" />
+                          <Users className="h-4 w-4 ml-1 opacity-50" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {visibleUsers.map((user) => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.name} ({user.role})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="dueDate"
+                render={({ field }) => {
+                  const handleDateSelect = (date: Date | undefined) => {
+                    field.onChange(date);
+                    if (
+                      date &&
+                      (!task.dueDate ||
+                        new Date(task.dueDate).getTime() !== date.getTime())
+                    ) {
+                      setDueDateChanged(true);
+                      setShowModal(true);
+                    }
+                  };
+
+                  return (
+                    <>
+                      <FormItem>
+                        <FormLabel>Due Date</FormLabel>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant={"outline"}
+                                className={cn(
+                                  "w-full pl-3 text-left font-normal",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                {field.value ? (
+                                  format(field.value, "PPP")
+                                ) : (
+                                  <span>No due date</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={field.value || undefined}
+                              onSelect={handleDateSelect}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                      </FormItem>
+
+                      {/* Modal */}
+                      <Dialog open={showModal} onOpenChange={setShowModal}>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>
+                              Reason for Changing Due Date
+                            </DialogTitle>
+                          </DialogHeader>
+
+                          <FormField
+                            control={form.control}
+                            name="dueDateReason"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormControl>
+                                  <Textarea
+                                    placeholder="Enter reason..."
+                                    value={dueDateChangeReason}
+                                    onChange={(e) =>
+                                      setDueDateChangeReason(e.target.value)
+                                    }
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
                             )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>No due date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value || undefined}
-                          onSelect={field.onChange}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                          />
+
+                          <div className="flex justify-end gap-2 mt-4">
+                            <Button
+
+                              variant="outline"
+                              onClick={() => {
+                                form.setValue(
+                                  "dueDate",
+                                  task.dueDate ? new Date(task.dueDate) : null
+                                );
+                                setShowModal(false);
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                            <Button onClick={() => setShowModal(false)}>
+                              Confirm
+                            </Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </>
+                  );
+                }}
+              />
+
+              <FormField
+                control={form.control}
+                name="lastDueDate"
+                render={({ field }) => (
+                  <FormItem className="flex-col">
+                    <FormLabel>Last Due Date</FormLabel>
+                    <FormControl>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full pl-3 text-left font-normal",
+                          !field.value
+                        )}
+                      >
+                        <div className="flex gap-10">
+                          <div>{new Date().toLocaleDateString()}</div>{" "}
+                          {/* Display current date */}
+                          <div>
+                            <LucideFileText />
+                          </div>{" "}
+                          {/* Replace with desired text */}
+                        </div>{" "}
+                      </Button>
+                    </FormControl>
+
                     <FormMessage />
                   </FormItem>
                 )}
@@ -285,48 +452,22 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
 
             <FormField
               control={form.control}
-              name="assignedToId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Assigned To</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a team member" />
-                        <Users className="h-4 w-4 ml-2 opacity-50" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {visibleUsers.map((user) => (
-                        <SelectItem key={user.id} value={user.id}>
-                          {user.name} ({user.role})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
               name="progress"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Progress: {field.value}%</FormLabel>
                   <FormControl>
-                    <Slider
-                      min={0}
-                      max={100}
-                      step={5}
-                      defaultValue={[field.value]}
-                      onValueChange={(values) => field.onChange(values[0])}
-                      className="py-4"
-                    />
+                    <div className="flex items-center gap-4 py-4">
+                      <Slider
+                        min={0}
+                        max={100}
+                        step={5}
+                        value={[field.value]}
+                        onValueChange={(values) => field.onChange(values[0])}
+                        className="flex-1"
+                      />
+                      <LucideFileText className="text-muted-foreground" />
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -341,7 +482,10 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
               >
                 Cancel
               </Button>
-              <Button type="submit">Save Changes</Button>
+              <Button onClick={(e)=>{
+                e.preventDefault()
+onSubmit(data)
+}} >Save Changes</Button>
             </div>
           </form>
         </Form>

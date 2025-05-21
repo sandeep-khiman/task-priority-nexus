@@ -131,6 +131,41 @@ export type Database = {
           },
         ]
       }
+      due_date_change: {
+  Row: {
+    id: string;
+    created_at: string;
+    task_id: string;
+    last_due_date: string | null;
+    reason_to_change: string;
+    updated_due_date: string | null;
+  };
+  Insert: {
+    id?: string;
+    created_at?: string;
+    task_id: string;
+    last_due_date?: string | null;
+    reason_to_change: string;
+    updated_due_date?: string | null;
+  };
+  Update: {
+    id?: string;
+    created_at?: string;
+    task_id?: string;
+    last_due_date?: string | null;
+    reason_to_change?: string;
+    updated_due_date?: string | null;
+  };
+  Relationships: [
+    {
+      foreignKeyName: "due_date_change_task_id_fkey";
+      columns: ["task_id"];
+      isOneToOne: false;
+      referencedRelation: "tasks";
+      referencedColumns: ["id"];
+    }
+  ];
+}
       team_members: {
         Row: {
           created_at: string

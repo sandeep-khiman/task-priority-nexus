@@ -1,5 +1,5 @@
 
-import { Task } from "@/types";
+import { Task } from "@/types/report";
 import { v4 as uuidv4 } from "uuid";
 
 // Mock user ID for the current user

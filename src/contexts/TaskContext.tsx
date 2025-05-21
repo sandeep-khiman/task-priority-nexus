@@ -58,17 +58,8 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [filter, setFilter] = useState<TaskFilterState>(initialFilterState);
   const [hideCompleted, setHideCompleted] = useState<boolean>(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [settings, setSettings] = useState<SystemSettings>({
-    taskDueDateThresholds: {
-      critical: 2,
-      medium: 5,
-      low: 5
-    },
-    tasksPerPage: 10,
-    defaultSortOrder: 'duedate-asc',
-    markOverdueDays: 3,
-    warningDays: 2
-  });
+  const [settings, setSettings] = useState<SystemSettings | null>(null);
+
   
   const { toast } = useToast();
   const { user, profile, isAuthenticated } = useAuth();
@@ -78,6 +69,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (isAuthenticated && user) {
       fetchTasks();
       fetchUsers();
+      fetchSystemSettings(); 
     } else {
       setTasks([]);
       setIsLoading(false);
@@ -85,31 +77,51 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [isAuthenticated, user]);
 
   // Subscribe to task updates
-  useEffect(() => {
+   useEffect(() => {
     if (!isAuthenticated || !user) return;
-    
+
     const tasksChannel = supabase
       .channel('tasks-changes')
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'tasks' 
-      }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
         // Refresh tasks when there are changes
         fetchTasks();
       })
       .subscribe();
-      
+
     return () => {
       supabase.removeChannel(tasksChannel);
     };
   }, [isAuthenticated, user]);
+
+// Define it at component level (outside any useEffect)
+const fetchSystemSettings = async () => {
+  const { data, error } = await supabase
+    .from('system_settings')
+    .select('settings')
+    .single();
+
+  if (error) {
+    console.error('Failed to fetch system settings:', error.message);
+    return;
+  }
+
+  try {
+    const parsedSettings: SystemSettings =
+      typeof data.settings === 'string'
+        ? JSON.parse(data.settings)
+        : data.settings;
+
+    setSettings(parsedSettings);
+  } catch (e) {
+    console.error('Failed to parse settings:', e);
+  }
+};
+
+// Now your effect can use it safely
+useEffect(() => {
+  fetchSystemSettings();
+}, []);
   
-  // Fetch system settings
-  useEffect(() => {
-    // In a real app, we would fetch settings from the database
-    // For now, we'll use the default settings
-  }, []);
 
   // Fetch tasks from Supabase
   const fetchTasks = async () => {
@@ -218,34 +230,92 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Update an existing task
-  const updateTask = async (taskData: any) => {
-    setIsLoading(true);
-    try {
-      const updatedTask = await taskService.updateTask(taskData);
-      
-      if (updatedTask) {
-        setTasks(prevTasks => 
-          prevTasks.map(task => 
-            task.id === updatedTask.id ? updatedTask : task
-          )
-        );
+  // const updateTask = async (taskData: any) => { 
+  //   setIsLoading(true);
+  //   try {
+  //     const existingTask = tasks.find(t => t.id === taskData.id);
+  //     if (!existingTask) return;
+  // console.log("-----------------------------");
+  
+  //     const updatedQuadrant = taskData.dueDate
+  //       ? determineTaskQuadrant({ ...existingTask, ...taskData }, settings)
+  //       : existingTask.quadrant;
+  
+  //     const updatedTask = await taskService.updateTask({
+  //       ...taskData,
+  //       quadrant: updatedQuadrant
+  //     });
+  // console.log(updatedTask);
+    
+  //     if (updatedTask) {
+  //       setTasks(prevTasks => 
+  //         prevTasks.map(task => 
+  //           task.id === updatedTask.id ? updatedTask : task
+  //         )
+  //       );
         
-        toast({
-          title: 'Task Updated',
-          description: 'Your task has been updated successfully'
-        });
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to update task');
+  //       toast({
+  //         title: 'Task Updated',
+  //         description: 'Your task has been updated successfully'
+  //       });
+  //     }
+  //   } catch (err: any) {
+  //     setError(err.message || 'Failed to update task');
+  //     toast({
+  //       title: 'Error',
+  //       description: 'Failed to update task',
+  //       variant: 'destructive'
+  //     });
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
+const updateTask = async (taskData: any) => {
+  setIsLoading(true);
+  try {
+    const existingTask = tasks.find(t => t.id === taskData.id);
+    if (!existingTask) return;
+
+    const dueDateChanged =
+      existingTask.dueDate !== taskData.dueDate;
+
+    console.log("-----------------------------");
+
+    const updatedQuadrant = taskData.dueDate
+      ? determineTaskQuadrant({ ...existingTask, ...taskData }, settings)
+      : existingTask.quadrant;
+
+    const updatedTask = await taskService.updateTask({
+      ...taskData,
+      quadrant: updatedQuadrant,
+      dueDateChangeReason: dueDateChanged ? taskData.dueDateChangeReason : undefined
+    });
+
+    console.log(updatedTask);
+
+    if (updatedTask) {
+      setTasks(prevTasks =>
+        prevTasks.map(task =>
+          task.id === updatedTask.id ? updatedTask : task
+        )
+      );
+
       toast({
-        title: 'Error',
-        description: 'Failed to update task',
-        variant: 'destructive'
+        title: 'Task Updated',
+        description: 'Your task has been updated successfully'
       });
-    } finally {
-      setIsLoading(false);
     }
-  };
+  } catch (err: any) {
+    setError(err.message || 'Failed to update task');
+    toast({
+      title: 'Error',
+      description: 'Failed to update task',
+      variant: 'destructive'
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   // Delete a task
   const deleteTask = async (taskId: string) => {

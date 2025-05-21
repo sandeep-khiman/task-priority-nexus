@@ -69,7 +69,7 @@ function TaskCard({ task }: TaskCardProps) {
   return (
     <Card 
       ref={cardRef}
-      className={`w-full cursor-grab relative ${isDragging ? 'opacity-50' : ''} text-sm`}
+      className={`w-full cursor-grab  relative ${isDragging ? 'opacity-50' : ''} text-sm`}
       draggable={true}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}

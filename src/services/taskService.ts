@@ -1,6 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { Task, Quadrant } from '@/types/task';
+import { Task, Quadrant,due_date_change } from '@/types/task';
 
 interface CreateTaskPayload {
   title: string;
@@ -16,6 +16,20 @@ interface CreateTaskPayload {
   quadrant: Quadrant;
 }
 
+// interface UpdateTaskPayload {
+//   id: string;
+//   title?: string;
+//   notes?: string;
+//   icon?: string;
+//   progress?: number;
+//   assignedToId?: string;
+//   assignedToName?: string;
+//   dueDate?: string | null;
+//   completed?: boolean;
+//   quadrant?: Quadrant;
+// }
+
+
 interface UpdateTaskPayload {
   id: string;
   title?: string;
@@ -27,6 +41,7 @@ interface UpdateTaskPayload {
   dueDate?: string | null;
   completed?: boolean;
   quadrant?: Quadrant;
+  reasonToChangeDueDate?: string; // NEW FIELD
 }
 
 export const taskService = {
@@ -193,76 +208,181 @@ export const taskService = {
   },
 
   // Update a task
-  async updateTask(task: UpdateTaskPayload): Promise<Task | null> {
-    const updates: any = {};
-    if (task.title !== undefined) updates.title = task.title;
-    if (task.notes !== undefined) updates.notes = task.notes;
-    if (task.icon !== undefined) updates.icon = task.icon;
-    if (task.progress !== undefined) updates.progress = task.progress;
-    if (task.assignedToId !== undefined) updates.assigned_to_id = task.assignedToId;
-    if (task.dueDate !== undefined) updates.due_date = task.dueDate;
-    if (task.completed !== undefined) updates.completed = task.completed;
-    if (task.quadrant !== undefined) updates.quadrant = task.quadrant;
-    updates.updated_at = new Date().toISOString();
+  // async updateTask(task: UpdateTaskPayload): Promise<Task | null> {
+  //   const updates: any = {};
+  //   if (task.title !== undefined) updates.title = task.title;
+  //   if (task.notes !== undefined) updates.notes = task.notes;
+  //   if (task.icon !== undefined) updates.icon = task.icon;
+  //   if (task.progress !== undefined) updates.progress = task.progress;
+  //   if (task.assignedToId !== undefined) updates.assigned_to_id = task.assignedToId;
+  //   if (task.dueDate !== undefined) updates.due_date = task.dueDate;
+  //   if (task.completed !== undefined) updates.completed = task.completed;
+  //   if (task.quadrant !== undefined) updates.quadrant = task.quadrant;
+  //   updates.updated_at = new Date().toISOString();
 
-    const { data: task_data, error } = await supabase
-      .from('tasks')
-      .update(updates)
-      .eq('id', task.id)
-      .select()
-      .single();
+  //   const { data: task_data, error } = await supabase
+  //     .from('tasks')
+  //     .update(updates)
+  //     .eq('id', task.id)
+  //     .select()
+  //     .single();
 
-    if (error) {
-      console.error('Error updating task:', error);
-      throw error;
-    }
+  //   if (error) {
+  //     console.error('Error updating task:', error);
+  //     throw error;
+  //   }
 
-    if (!task_data) return null;
+  //   if (!task_data) return null;
 
-    // Get creator profile
-    let createdByName = 'Unknown';
-    if (task_data.created_by_id) {
-      const { data: creatorData } = await supabase
-        .from('profiles')
-        .select('name')
-        .eq('id', task_data.created_by_id)
-        .single();
-      if (creatorData) {
-        createdByName = creatorData.name;
-      }
-    }
+  //   // Get creator profile
+  //   let createdByName = 'Unknown';
+  //   if (task_data.created_by_id) {
+  //     const { data: creatorData } = await supabase
+  //       .from('profiles')
+  //       .select('name')
+  //       .eq('id', task_data.created_by_id)
+  //       .single();
+  //     if (creatorData) {
+  //       createdByName = creatorData.name;
+  //     }
+  //   }
 
-    // Get assignee profile
-    let assignedToName = task.assignedToName || 'Unassigned';
-    if (task_data.assigned_to_id && !task.assignedToName) {
-      const { data: assigneeData } = await supabase
-        .from('profiles')
-        .select('name')
-        .eq('id', task_data.assigned_to_id)
-        .single();
-      if (assigneeData) {
-        assignedToName = assigneeData.name;
-      }
-    }
+  //   // Get assignee profile
+  //   let assignedToName = task.assignedToName || 'Unassigned';
+  //   if (task_data.assigned_to_id && !task.assignedToName) {
+  //     const { data: assigneeData } = await supabase
+  //       .from('profiles')
+  //       .select('name')
+  //       .eq('id', task_data.assigned_to_id)
+  //       .single();
+  //     if (assigneeData) {
+  //       assignedToName = assigneeData.name;
+  //     }
+  //   }
 
-    return {
-      id: task_data.id,
-      title: task_data.title,
-      notes: task_data.notes,
-      icon: task_data.icon || '📝',
-      progress: task_data.progress,
-      createdById: task_data.created_by_id,
-      createdByName,
-      assignedToId: task_data.assigned_to_id,
-      assignedToName,
-      dueDate: task_data.due_date,
-      completed: task_data.completed,
-      quadrant: task_data.quadrant as Quadrant,
-      createdAt: task_data.created_at,
-      updatedAt: task_data.updated_at
+  //   return {
+  //     id: task_data.id,
+  //     title: task_data.title,
+  //     notes: task_data.notes,
+  //     icon: task_data.icon || '📝',
+  //     progress: task_data.progress,
+  //     createdById: task_data.created_by_id,
+  //     createdByName,
+  //     assignedToId: task_data.assigned_to_id,
+  //     assignedToName,
+  //     dueDate: task_data.due_date,
+  //     completed: task_data.completed,
+  //     quadrant: task_data.quadrant as Quadrant,
+  //     createdAt: task_data.created_at,
+  //     updatedAt: task_data.updated_at
+  //   };
+  // },
+async updateTask(task: UpdateTaskPayload): Promise<Task | null> {
+  const updates: any = {};
+  if (task.title !== undefined) updates.title = task.title;
+  if (task.notes !== undefined) updates.notes = task.notes;
+  if (task.icon !== undefined) updates.icon = task.icon;
+  if (task.progress !== undefined) updates.progress = task.progress;
+  if (task.assignedToId !== undefined) updates.assigned_to_id = task.assignedToId;
+  if (task.completed !== undefined) updates.completed = task.completed;
+  if (task.quadrant !== undefined) updates.quadrant = task.quadrant;
+
+  updates.updated_at = new Date().toISOString();
+
+  // Get the current task to check for dueDate changes
+  const { data: existingTask, error: fetchError } = await supabase
+    .from('tasks')
+    .select('due_date')
+    .eq('id', task.id)
+    .single();
+
+  if (fetchError || !existingTask) {
+    console.error('Failed to fetch current task:', fetchError);
+    return null;
+  }
+
+  const oldDueDate = existingTask.due_date;
+  const newDueDate = task.dueDate;
+
+  // Track due date change
+  if (newDueDate !== undefined && newDueDate !== oldDueDate) {
+    updates.due_date = newDueDate;
+
+    const dueChange = {
+      task_id: task.id,
+      last_due_date: oldDueDate,
+      updated_due_date: newDueDate,
+      reason_to_change: task.reasonToChangeDueDate || 'Updated via system',
+      created_at: new Date().toISOString(),
     };
-  },
 
+    const { error: dueDateError } = await supabase
+      .from('due_date_change')
+      .insert([dueChange]);
+
+    if (dueDateError) {
+      console.error('Failed to log due date change:', dueDateError);
+      // You might decide to still proceed, or throw an error here depending on your needs
+    }
+  }
+
+  const { data: task_data, error } = await supabase
+    .from('tasks')
+    .update(updates)
+    .eq('id', task.id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating task:', error);
+    throw error;
+  }
+
+  if (!task_data) return null;
+
+  // Get creator profile
+  let createdByName = 'Unknown';
+  if (task_data.created_by_id) {
+    const { data: creatorData } = await supabase
+      .from('profiles')
+      .select('name')
+      .eq('id', task_data.created_by_id)
+      .single();
+    if (creatorData) {
+      createdByName = creatorData.name;
+    }
+  }
+
+  // Get assignee profile
+  let assignedToName = task.assignedToName || 'Unassigned';
+  if (task_data.assigned_to_id && !task.assignedToName) {
+    const { data: assigneeData } = await supabase
+      .from('profiles')
+      .select('name')
+      .eq('id', task_data.assigned_to_id)
+      .single();
+    if (assigneeData) {
+      assignedToName = assigneeData.name;
+    }
+  }
+
+  return {
+    id: task_data.id,
+    title: task_data.title,
+    notes: task_data.notes,
+    icon: task_data.icon || '📝',
+    progress: task_data.progress,
+    createdById: task_data.created_by_id,
+    createdByName,
+    assignedToId: task_data.assigned_to_id,
+    assignedToName,
+    dueDate: task_data.due_date,
+    completed: task_data.completed,
+    quadrant: task_data.quadrant as Quadrant,
+    createdAt: task_data.created_at,
+    updatedAt: task_data.updated_at
+  };
+},
   // Delete a task
   async deleteTask(taskId: string): Promise<void> {
     const { error } = await supabase

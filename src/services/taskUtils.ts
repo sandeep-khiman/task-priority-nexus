@@ -6,8 +6,8 @@ import { SystemSettings } from '@/types/user';
 const defaultSettings: SystemSettings = {
   taskDueDateThresholds: {
     critical: 2, // ≤ 2 days → Critical (Quadrant 1)
-    medium: 5,   // 3-5 days → Medium (Quadrant 2)
-    low: 5       // > 5 days → Low (Quadrant 3 or 4 based on importance)
+    medium: 4,   // 2-4 days → Medium (Quadrant 2)
+    low: 6       // > =6 days → Low (Quadrant 3 or 4 based on importance)
   },
   tasksPerPage: 10,
   defaultSortOrder: 'duedate-asc',
@@ -42,16 +42,16 @@ export const determineTaskQuadrant = (
   }
   
   // Use settings to determine priority based on days until due
-  const { critical, medium } = settings.taskDueDateThresholds;
+  const { critical, medium ,low} = settings.taskDueDateThresholds;
   
   if (daysUntilDue <= critical) {
     return 1; // Critical - Quadrant 1 (Urgent & Important)
   } else if (daysUntilDue <= medium) {
     return 2; // Medium - Quadrant 2 (Important, Not Urgent)
-  } else {
-    // For tasks due in more than 'medium' days:
-    // We'll use quadrant 3 as default for low priority
+  } else if(daysUntilDue<=low){
     return 3;
+  } else {
+    return 4;
   }
 };
 
@@ -92,12 +92,14 @@ export const getPriorityColor = (
     return 'bg-red-600';
   }
   
-  const { critical, medium } = settings.taskDueDateThresholds;
+  const { critical, medium,low } = settings.taskDueDateThresholds;
   
-  if (daysUntilDue <= critical) {
+  if (daysUntilDue < critical) {
     return 'bg-red-500'; // Critical
-  } else if (daysUntilDue <= medium) {
+  } else if (daysUntilDue < medium) {
     return 'bg-yellow-500'; // Medium
+  }else if (daysUntilDue < low) {
+    return 'bg-blue-500'; // Medium
   } else {
     return 'bg-green-500'; // Low
   }
@@ -127,11 +129,13 @@ export const getPriorityLabel = (
     return `Overdue by ${Math.abs(daysUntilDue)} days`;
   }
   
-  const { critical, medium } = settings.taskDueDateThresholds;
+  const { critical, medium ,low} = settings.taskDueDateThresholds;
   
-  if (daysUntilDue <= critical) {
+  if (daysUntilDue < critical) {
     return daysUntilDue === 0 ? 'Due today!' : `Due in ${daysUntilDue} days`;
-  } else if (daysUntilDue <= medium) {
+  } else if (daysUntilDue <medium) {
+    return `Due in ${daysUntilDue} days`;
+  } else if (daysUntilDue < low) {
     return `Due in ${daysUntilDue} days`;
   } else {
     return `Due in ${daysUntilDue} days`;
