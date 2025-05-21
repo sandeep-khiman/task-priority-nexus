@@ -1,6 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { Task, Quadrant,due_date_change } from '@/types/task';
+import { Task, Quadrant,DueDateChange } from '@/types/task';
 
 interface CreateTaskPayload {
   title: string;
@@ -16,19 +16,6 @@ interface CreateTaskPayload {
   quadrant: Quadrant;
 }
 
-// interface UpdateTaskPayload {
-//   id: string;
-//   title?: string;
-//   notes?: string;
-//   icon?: string;
-//   progress?: number;
-//   assignedToId?: string;
-//   assignedToName?: string;
-//   dueDate?: string | null;
-//   completed?: boolean;
-//   quadrant?: Quadrant;
-// }
-
 
 interface UpdateTaskPayload {
   id: string;
@@ -41,7 +28,9 @@ interface UpdateTaskPayload {
   dueDate?: string | null;
   completed?: boolean;
   quadrant?: Quadrant;
-  reasonToChangeDueDate?: string; // NEW FIELD
+  reasonToChangeDueDate?: string;
+  progressUpdateNote?:string;
+
 }
 
 export const taskService = {
@@ -207,76 +196,7 @@ export const taskService = {
     };
   },
 
-  // Update a task
-  // async updateTask(task: UpdateTaskPayload): Promise<Task | null> {
-  //   const updates: any = {};
-  //   if (task.title !== undefined) updates.title = task.title;
-  //   if (task.notes !== undefined) updates.notes = task.notes;
-  //   if (task.icon !== undefined) updates.icon = task.icon;
-  //   if (task.progress !== undefined) updates.progress = task.progress;
-  //   if (task.assignedToId !== undefined) updates.assigned_to_id = task.assignedToId;
-  //   if (task.dueDate !== undefined) updates.due_date = task.dueDate;
-  //   if (task.completed !== undefined) updates.completed = task.completed;
-  //   if (task.quadrant !== undefined) updates.quadrant = task.quadrant;
-  //   updates.updated_at = new Date().toISOString();
 
-  //   const { data: task_data, error } = await supabase
-  //     .from('tasks')
-  //     .update(updates)
-  //     .eq('id', task.id)
-  //     .select()
-  //     .single();
-
-  //   if (error) {
-  //     console.error('Error updating task:', error);
-  //     throw error;
-  //   }
-
-  //   if (!task_data) return null;
-
-  //   // Get creator profile
-  //   let createdByName = 'Unknown';
-  //   if (task_data.created_by_id) {
-  //     const { data: creatorData } = await supabase
-  //       .from('profiles')
-  //       .select('name')
-  //       .eq('id', task_data.created_by_id)
-  //       .single();
-  //     if (creatorData) {
-  //       createdByName = creatorData.name;
-  //     }
-  //   }
-
-  //   // Get assignee profile
-  //   let assignedToName = task.assignedToName || 'Unassigned';
-  //   if (task_data.assigned_to_id && !task.assignedToName) {
-  //     const { data: assigneeData } = await supabase
-  //       .from('profiles')
-  //       .select('name')
-  //       .eq('id', task_data.assigned_to_id)
-  //       .single();
-  //     if (assigneeData) {
-  //       assignedToName = assigneeData.name;
-  //     }
-  //   }
-
-  //   return {
-  //     id: task_data.id,
-  //     title: task_data.title,
-  //     notes: task_data.notes,
-  //     icon: task_data.icon || '📝',
-  //     progress: task_data.progress,
-  //     createdById: task_data.created_by_id,
-  //     createdByName,
-  //     assignedToId: task_data.assigned_to_id,
-  //     assignedToName,
-  //     dueDate: task_data.due_date,
-  //     completed: task_data.completed,
-  //     quadrant: task_data.quadrant as Quadrant,
-  //     createdAt: task_data.created_at,
-  //     updatedAt: task_data.updated_at
-  //   };
-  // },
 async updateTask(task: UpdateTaskPayload): Promise<Task | null> {
   const updates: any = {};
   if (task.title !== undefined) updates.title = task.title;
@@ -289,10 +209,10 @@ async updateTask(task: UpdateTaskPayload): Promise<Task | null> {
 
   updates.updated_at = new Date().toISOString();
 
-  // Get the current task to check for dueDate changes
+  // Get the current task to check for dueDate and progress changes
   const { data: existingTask, error: fetchError } = await supabase
     .from('tasks')
-    .select('due_date')
+    .select('due_date, progress')
     .eq('id', task.id)
     .single();
 
@@ -302,6 +222,7 @@ async updateTask(task: UpdateTaskPayload): Promise<Task | null> {
   }
 
   const oldDueDate = existingTask.due_date;
+  const oldProgress = existingTask.progress;
   const newDueDate = task.dueDate;
 
   // Track due date change
@@ -322,10 +243,29 @@ async updateTask(task: UpdateTaskPayload): Promise<Task | null> {
 
     if (dueDateError) {
       console.error('Failed to log due date change:', dueDateError);
-      // You might decide to still proceed, or throw an error here depending on your needs
     }
   }
 
+  // Track progress change
+  if (task.progress !== undefined && task.progress !== oldProgress) {
+    const progressUpdate = {
+      task_id: task.id,
+      previous_progress: oldProgress,
+      current_progress: task.progress,
+      updates: task.progressUpdateNote, // or allow task.reasonToChangeProgress if you track it
+      created_at: new Date().toISOString(),
+    };
+
+    const { error: progressUpdateError } = await supabase
+      .from('task_progress_update')
+      .insert([progressUpdate]);
+
+    if (progressUpdateError) {
+      console.error('Failed to log progress update:', progressUpdateError);
+    }
+  }
+
+  // Update task
   const { data: task_data, error } = await supabase
     .from('tasks')
     .update(updates)
@@ -382,7 +322,8 @@ async updateTask(task: UpdateTaskPayload): Promise<Task | null> {
     createdAt: task_data.created_at,
     updatedAt: task_data.updated_at
   };
-},
+}
+,
   // Delete a task
   async deleteTask(taskId: string): Promise<void> {
     const { error } = await supabase

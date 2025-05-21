@@ -1,20 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   CalendarIcon,
   Edit,
-  File,
-  FileArchive,
   LucideFileText,
   Users,
+  Calendar,
+  HelpCircle,
+  SoupIcon,
 } from "lucide-react";
 import { format } from "date-fns";
 
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -42,12 +44,25 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Calendar } from "@/components/ui/calendar";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Slider } from "@/components/ui/slider";
 import { useTaskContext } from "@/contexts/TaskContext";
-import { Task, Quadrant } from "@/types/task";
+import { Task, Quadrant, DueDateChange, TaskProgressUpdate } from "@/types/task";
 import { cn } from "@/lib/utils";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 const formSchema = z
   .object({
@@ -60,6 +75,7 @@ const formSchema = z
     dueDateReason: z.string().optional(),
     assignedToId: z.string().min(1, { message: "Please select an assignee" }),
     progress: z.number().int().min(0).max(100),
+    progressUpdateNote:z.string().optional()
   })
   .refine(
     (data) =>
@@ -85,11 +101,93 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
   const [showModal, setShowModal] = useState(false);
   const [dueDateChanged, setDueDateChanged] = useState(false);
   const [dueDateChangeReason, setDueDateChangeReason] = useState("");
-
-  const { updateTask, getVisibleUsers } = useTaskContext();
+  const [progressChangeUpdate, setProgressChangeUpdate] = useState("");
+  const [lastDueDateChange, setLastDueDateChange] =
+    useState<DueDateChange | null>(null);
+  const [dueDateHistory, setDueDateHistory] = useState<DueDateChange[]>([]);
+  const [historySheetOpen, setHistorySheetOpen] = useState(false);
+const [showProgressModal, setShowProgressModal] = useState(false);
+const [progressUpdateNotes, setProgressUpdateNotes] = useState('');
+const [previousProgress, setPreviousProgress] = useState(0);
+const [progressHistory, setProgressHistory] = useState<TaskProgressUpdate[]>([]);
+const [lastProgressUpdate, setLastProgressUpdate] = useState<TaskProgressUpdate | null>(null);
+  const {
+    updateTask,
+    getVisibleUsers,
+    fetchLatestDueDateChange,
+    fetchDueDateChanges,
+  } = useTaskContext();
   const { toast } = useToast();
   const visibleUsers = getVisibleUsers();
 
+  // Fetch the latest due date change when the dialog opens
+  useEffect(() => {
+    if (open && task.id) {
+      fetchLatestDueDateChange(task.id).then((change) => {
+        setLastDueDateChange(change);
+      });
+
+      // Also fetch all history
+      fetchDueDateChanges(task.id).then((history) => {
+        setDueDateHistory(history);
+      });
+    }
+  }, [open, task.id, fetchLatestDueDateChange, fetchDueDateChanges]);
+// Fetch progress history when component mounts
+useEffect(() => {
+  
+  const fetchProgressHistory = async () => {
+    try {
+      const response = await fetch(`/api/tasks/${task.id}/progress-updates`);
+      const data = await response.json();
+      console.log(data);
+      
+      setProgressHistory(data);
+      if (data.length > 0) {
+        setLastProgressUpdate(data[0]);
+      }
+    } catch (error) {
+      console.error('Error fetching progress history:', error);
+    }
+  };
+  fetchProgressHistory();
+}, [task.id]);
+
+// Handle submitting progress updates
+const handleProgressUpdate = async (notes: string) => {
+  try {
+    const currentProgress = form.getValues('progress');
+    
+    const response = await fetch('/api/tasks/progress-updates', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        task_id: task.id,
+        current_progress: currentProgress,
+        previous_progress: previousProgress,
+        updates: progressChangeUpdate,
+      }),
+    });
+
+    const newUpdate = await response.json();
+    setProgressHistory([newUpdate, ...progressHistory]);
+    setLastProgressUpdate(newUpdate);
+    
+    toast({
+      title: 'Progress updated',
+      description: 'Your progress update has been saved',
+    });
+  } catch (error) {
+    toast({
+      title: 'Error',
+      description: 'Failed to save progress update',
+      variant: 'destructive',
+    });
+    console.error('Error saving progress update:', error);
+  }
+};
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -100,18 +198,17 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
       dueDate: task.dueDate ? new Date(task.dueDate) : null,
       assignedToId: task.assignedToId,
       progress: task.progress,
-      lastDueDate: task.createdAt ? new Date(task.createdAt) : null,
-      dueDateReason: "",
+      lastDueDate: task.dueDate ? new Date(task.dueDate) : null,
+      dueDateReason: dueDateChangeReason,
+      progressUpdateNote : progressChangeUpdate,
     },
   });
-  const data = form.getValues()
-  console.log(data)
+
   const onSubmit = async (values: FormValues) => {
     try {
       const selectedUser = visibleUsers.find(
         (user) => user.id === values.assignedToId
       );
-console.log(selectedUser,"--------------",values);
 
       if (!selectedUser) {
         toast({
@@ -122,7 +219,13 @@ console.log(selectedUser,"--------------",values);
         return;
       }
 
-       updateTask({
+      const hasDueDateChanged =
+        values.dueDate &&
+        task.dueDate &&
+        new Date(values.dueDate).toISOString() !== task.dueDate;
+      console.log("-----------------------", hasDueDateChanged);
+
+      await updateTask({
         ...task,
         title: values.title,
         notes: values.notes || "",
@@ -132,10 +235,10 @@ console.log(selectedUser,"--------------",values);
         assignedToId: selectedUser.id,
         assignedToName: selectedUser.name,
         progress: values.progress,
-        dueDateChangeReason:
-          values.dueDate?.toISOString() !== task.dueDate
-            ? dueDateChangeReason
-            : undefined,
+        dueDateChangeReason: hasDueDateChanged
+          ? dueDateChangeReason
+          : undefined,
+          
       });
 
       toast({
@@ -192,7 +295,7 @@ console.log(selectedUser,"--------------",values);
         </DialogHeader>
         <Form {...form}>
           <form
-          
+            onSubmit={form.handleSubmit(onSubmit)}
             className="space-y-4 mt-2"
           >
             <div className="grid grid-cols-4 gap-4">
@@ -321,11 +424,21 @@ console.log(selectedUser,"--------------",values);
                 render={({ field }) => {
                   const handleDateSelect = (date: Date | undefined) => {
                     field.onChange(date);
-                    if (
-                      date &&
-                      (!task.dueDate ||
-                        new Date(task.dueDate).getTime() !== date.getTime())
-                    ) {
+                    const originalDueDate = task.dueDate
+                      ? new Date(task.dueDate)
+                      : null;
+                    const selectedDate = date || null;
+
+                    // Check if date has changed by comparing ISO strings or null values
+                    const hasDateChanged =
+                      (originalDueDate &&
+                        selectedDate &&
+                        originalDueDate.toISOString().split("T")[0] !==
+                          selectedDate.toISOString().split("T")[0]) ||
+                      (originalDueDate === null && selectedDate !== null) ||
+                      (originalDueDate !== null && selectedDate === null);
+
+                    if (hasDateChanged) {
                       setDueDateChanged(true);
                       setShowModal(true);
                     }
@@ -355,7 +468,7 @@ console.log(selectedUser,"--------------",values);
                             </FormControl>
                           </PopoverTrigger>
                           <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
+                            <CalendarComponent
                               mode="single"
                               selected={field.value || undefined}
                               onSelect={handleDateSelect}
@@ -375,40 +488,49 @@ console.log(selectedUser,"--------------",values);
                             </DialogTitle>
                           </DialogHeader>
 
-                          <FormField
-                            control={form.control}
-                            name="dueDateReason"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormControl>
-                                  <Textarea
-                                    placeholder="Enter reason..."
-                                    value={dueDateChangeReason}
-                                    onChange={(e) =>
-                                      setDueDateChangeReason(e.target.value)
-                                    }
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                          <FormItem>
+                            <FormLabel>
+                              Please provide a reason for changing the due date
+                            </FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Enter reason..."
+                                value={dueDateChangeReason}
+                                onChange={(e) =>
+                                  setDueDateChangeReason(e.target.value)
+                                }
+                              />
+                            </FormControl>
+                          </FormItem>
 
                           <div className="flex justify-end gap-2 mt-4">
                             <Button
-
+                              type="button"
                               variant="outline"
                               onClick={() => {
+                                // Reset due date to original
                                 form.setValue(
                                   "dueDate",
                                   task.dueDate ? new Date(task.dueDate) : null
                                 );
                                 setShowModal(false);
+                                setDueDateChanged(false);
                               }}
                             >
                               Cancel
                             </Button>
-                            <Button onClick={() => setShowModal(false)}>
+                            <Button
+                              type="button"
+                              onClick={() => {
+                                // Just close the modal, keeping the new date
+                                form.setValue(
+                                  "dueDateReason",
+                                  dueDateChangeReason
+                                );
+                                setShowModal(false);
+                              }}
+                              disabled={!dueDateChangeReason.trim()}
+                            >
                               Confirm
                             </Button>
                           </div>
@@ -426,54 +548,222 @@ console.log(selectedUser,"--------------",values);
                   <FormItem className="flex-col">
                     <FormLabel>Last Due Date</FormLabel>
                     <FormControl>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-full pl-3 text-left font-normal",
-                          !field.value
-                        )}
-                      >
-                        <div className="flex gap-10">
-                          <div>{new Date().toLocaleDateString()}</div>{" "}
-                          {/* Display current date */}
-                          <div>
-                            <LucideFileText />
-                          </div>{" "}
-                          {/* Replace with desired text */}
-                        </div>{" "}
-                      </Button>
+                      <HoverCard>
+                        <HoverCardTrigger asChild>
+                          <Sheet>
+                            <SheetTrigger asChild>
+                              <div className="cursor-pointer">
+                                {" "}
+                                {/* Combined trigger */}
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className="w-full pl-3 text-left font-normal flex justify-between items-center hover:bg-accent"
+                                >
+                                  <div>
+                                    {lastDueDateChange
+                                      ? format(
+                                          new Date(
+                                            lastDueDateChange.last_due_date
+                                          ),
+                                          "MMM d, yyyy"
+                                        )
+                                      : task.dueDate
+                                      ? format(
+                                          new Date(task.dueDate),
+                                          "MMM d, yyyy"
+                                        )
+                                      : "No previous date"}
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <LucideFileText className="h-4 w-4 opacity-50" />
+                                    <HelpCircle className="h-3 w-3 opacity-50" />
+                                  </div>
+                                </Button>
+                              </div>
+                            </SheetTrigger>
+                            <SheetContent
+                              side="right"
+                              className="w-[400px] sm:w-[540px]"
+                            >
+                              {/* Your sheet content here */}
+                            </SheetContent>
+                          </Sheet>
+                        </HoverCardTrigger>
+                        <HoverCardContent
+                          className="w-80 z-50"
+                          align="start"
+                          side="bottom"
+                          onPointerDownOutside={(e) => e.preventDefault()} // Prevent closing on click
+                        >
+                          <div className="space-y-2">
+                            <h4 className="text-sm font-semibold">
+                              Last Change Details
+                            </h4>
+                            {lastDueDateChange ? (
+                              <>
+                                <div className="text-sm">
+                                  <span className="font-medium">
+                                    Changed on:
+                                  </span>{" "}
+                                  {format(
+                                    new Date(lastDueDateChange.created_at),
+                                    "PPP"
+                                  )}
+                                </div>
+                                <div className="text-sm">
+                                  <span className="font-medium">Reason:</span>{" "}
+                                  {lastDueDateChange.reason_to_change ||
+                                    "No reason provided"}
+                                </div>
+                              </>
+                            ) : (
+                              <div className="text-sm text-muted-foreground">
+                                No change history available
+                              </div>
+                            )}
+                          </div>
+                        </HoverCardContent>
+                      </HoverCard>
                     </FormControl>
-
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="progress"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Progress: {field.value}%</FormLabel>
-                  <FormControl>
-                    <div className="flex items-center gap-4 py-4">
-                      <Slider
-                        min={0}
-                        max={100}
-                        step={5}
-                        value={[field.value]}
-                        onValueChange={(values) => field.onChange(values[0])}
-                        className="flex-1"
-                      />
-                      <LucideFileText className="text-muted-foreground" />
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+  <div className="grid grid-cols-2 gap-4">
+  <FormField
+    control={form.control}
+    name="progress"
+    render={({ field }) => {
+      const handleProgressChange = (values: number[]) => {
+        const newValue = values[0];
+        const currentValue = field.value || 0;
 
+        // Only allow progress to increase
+        if (newValue < currentValue) return;
+
+        if (newValue > currentValue) {
+          setPreviousProgress(currentValue);
+          field.onChange(newValue);
+          setShowProgressModal(true);
+        } else {
+          field.onChange(newValue);
+        }
+      };
+
+      return (
+        <>
+          <FormItem>
+            <FormLabel>Progress</FormLabel>
+            <FormControl>
+              <div className="flex items-center gap-4">
+                <Slider
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={[field.value || 0]}
+                  onValueChange={handleProgressChange}
+                  className="flex-1"
+                />
+                <span className="w-12 text-right">{field.value || 0}%</span>
+              </div>
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+
+          {/* Progress Update Modal */}
+          <Dialog open={showProgressModal} onOpenChange={setShowProgressModal}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Progress Update</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <Textarea
+                  placeholder="What's been completed since last update?"
+                  value={progressUpdateNotes}
+                  onChange={(e) => setProgressUpdateNotes(e.target.value)}
+                  className="min-h-[120px]"
+                />
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      field.onChange(previousProgress);
+                      setShowProgressModal(false);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      handleProgressUpdate(progressUpdateNotes);
+                      setProgressUpdateNotes('');
+                      setShowProgressModal(false);
+                    }}
+                    disabled={!progressUpdateNotes.trim()}
+                  >
+                    Save Update
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </>
+      );
+    }}
+  />
+
+  <FormField
+    control={form.control}
+    name="progressUpdateNote"
+    render={({ field }) => (
+      <FormItem>
+        <FormControl>
+          <HoverCard>
+            <HoverCardTrigger asChild>
+              <div className="cursor-pointer h-full">
+                <Button
+                  variant="outline"
+                  className="flex items-center justify-between py-6 px-4 hover:bg-accent"
+                >
+                  <LucideFileText className="h-4 w-4 opacity-70" />
+                </Button>
+              </div>
+            </HoverCardTrigger>
+            
+            <HoverCardContent className="w-20 z-50" align="start" side="bottom">
+              {lastProgressUpdate ? (
+                <div className="space-y-2">
+                  <div className="text-sm">
+                    <span className="font-medium">Updated:</span>{" "}
+                    {format(new Date(lastProgressUpdate.created_at), "PPP")}
+                  </div>
+                  <div className="text-sm">
+                    <span className="font-medium">Progress change:</span>{" "}
+                    {lastProgressUpdate.previous_progress}% → {lastProgressUpdate.current_progress}%
+                  </div>
+                  {lastProgressUpdate.updates && (
+                    <div className="text-sm">
+                      <span className="font-medium">Notes:</span>{" "}
+                      <p className="mt-1">{lastProgressUpdate.updates}</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-sm text-muted-foreground">
+                  No update history available
+                </div>
+              )}
+            </HoverCardContent>
+          </HoverCard>
+        </FormControl>
+        <FormMessage />
+      </FormItem>
+    )}
+  />
+</div>
             <div className="flex justify-end space-x-2 pt-4">
               <Button
                 type="button"
@@ -482,10 +772,12 @@ console.log(selectedUser,"--------------",values);
               >
                 Cancel
               </Button>
-              <Button onClick={(e)=>{
-                e.preventDefault()
-onSubmit(data)
-}} >Save Changes</Button>
+              <Button
+                type="submit"
+                disabled={dueDateChanged && !dueDateChangeReason.trim()}
+              >
+                Save Changes
+              </Button>
             </div>
           </form>
         </Form>

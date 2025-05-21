@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Task, Quadrant } from '@/types/task';
+import { Task, Quadrant, DueDateChange } from '@/types/task';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext'; 
 import { taskService } from '@/services/taskService';
@@ -32,6 +32,8 @@ interface TaskContextType {
   setHideCompleted: React.Dispatch<React.SetStateAction<boolean>>;
   selectedUserId: string | null;
   setSelectedUserId: (userId: string | null) => void;
+  fetchLatestDueDateChange: (taskId: string) => Promise<DueDateChange | null>;
+  fetchDueDateChanges: (taskId: string) => Promise<DueDateChange[]>;
 }
 
 const initialFilterState: TaskFilterState = {
@@ -65,17 +67,21 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { user, profile, isAuthenticated } = useAuth();
 
   // Load tasks when the user is authenticated
-  useEffect(() => {
+   // Move this to just one useEffect
+useEffect(() => {
+  const initialize = async () => {
     if (isAuthenticated && user) {
-      fetchTasks();
-      fetchUsers();
-      fetchSystemSettings(); 
+      await fetchSystemSettings();
+      await fetchTasks();
+      await fetchUsers();
     } else {
       setTasks([]);
       setIsLoading(false);
     }
-  }, [isAuthenticated, user]);
-
+  };
+  initialize();
+}, [isAuthenticated, user]);
+  
   // Subscribe to task updates
    useEffect(() => {
     if (!isAuthenticated || !user) return;
@@ -93,36 +99,32 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [isAuthenticated, user]);
 
-// Define it at component level (outside any useEffect)
-const fetchSystemSettings = async () => {
-  const { data, error } = await supabase
-    .from('system_settings')
-    .select('settings')
-    .single();
+  // Define it at component level
+  const fetchSystemSettings = async () => {
+    const { data, error } = await supabase
+      .from('system_settings')
+      .select('settings')
+      .single();
 
-  if (error) {
-    console.error('Failed to fetch system settings:', error.message);
-    return;
-  }
+    if (error) {
+      console.error('Failed to fetch system settings:', error.message);
+      return;
+    }
 
-  try {
-    const parsedSettings: SystemSettings =
-      typeof data.settings === 'string'
-        ? JSON.parse(data.settings)
-        : data.settings;
+    try {
+      const parsedSettings: SystemSettings =
+        typeof data.settings === 'string'
+          ? JSON.parse(data.settings)
+          : data.settings;
 
-    setSettings(parsedSettings);
-  } catch (e) {
-    console.error('Failed to parse settings:', e);
-  }
-};
+      setSettings(parsedSettings);
+    } catch (e) {
+      console.error('Failed to parse settings:', e);
+    }
+  };
 
-// Now your effect can use it safely
-useEffect(() => {
-  fetchSystemSettings();
-}, []);
-  
-
+  // Now your effect can use it safely
+   
   // Fetch tasks from Supabase
   const fetchTasks = async () => {
     if (!user) return;
@@ -229,94 +231,52 @@ useEffect(() => {
     }
   };
 
-  // Update an existing task
-  // const updateTask = async (taskData: any) => { 
-  //   setIsLoading(true);
-  //   try {
-  //     const existingTask = tasks.find(t => t.id === taskData.id);
-  //     if (!existingTask) return;
-  // console.log("-----------------------------");
-  
-  //     const updatedQuadrant = taskData.dueDate
-  //       ? determineTaskQuadrant({ ...existingTask, ...taskData }, settings)
-  //       : existingTask.quadrant;
-  
-  //     const updatedTask = await taskService.updateTask({
-  //       ...taskData,
-  //       quadrant: updatedQuadrant
-  //     });
-  // console.log(updatedTask);
-    
-  //     if (updatedTask) {
-  //       setTasks(prevTasks => 
-  //         prevTasks.map(task => 
-  //           task.id === updatedTask.id ? updatedTask : task
-  //         )
-  //       );
-        
-  //       toast({
-  //         title: 'Task Updated',
-  //         description: 'Your task has been updated successfully'
-  //       });
-  //     }
-  //   } catch (err: any) {
-  //     setError(err.message || 'Failed to update task');
-  //     toast({
-  //       title: 'Error',
-  //       description: 'Failed to update task',
-  //       variant: 'destructive'
-  //     });
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
+ // Update an existing task
 const updateTask = async (taskData: any) => {
   setIsLoading(true);
+  
+  // Declare existingTask outside the try block so it's available in catch
+  const existingTask = tasks.find(t => t.id === taskData.id);
+  if (!existingTask) {
+    setIsLoading(false);
+    return;
+  }
+
   try {
-    const existingTask = tasks.find(t => t.id === taskData.id);
-    if (!existingTask) return;
-
-    const dueDateChanged =
-      existingTask.dueDate !== taskData.dueDate;
-
-    console.log("-----------------------------");
-
-    const updatedQuadrant = taskData.dueDate
-      ? determineTaskQuadrant({ ...existingTask, ...taskData }, settings)
-      : existingTask.quadrant;
-
-    const updatedTask = await taskService.updateTask({
+    // Optimistic update
+    const updatedTask = {
+      ...existingTask,
       ...taskData,
-      quadrant: updatedQuadrant,
-      dueDateChangeReason: dueDateChanged ? taskData.dueDateChangeReason : undefined
+      quadrant: taskData.dueDate
+        ? determineTaskQuadrant({ ...existingTask, ...taskData }, settings)
+        : existingTask.quadrant
+    };
+    
+    setTasks(prev => prev.map(t => t.id === taskData.id ? updatedTask : t));
+
+    // Actual update
+    const dueDateChanged = existingTask.dueDate !== taskData.dueDate;
+    const result = await taskService.updateTask({
+      ...taskData,
+      reasonToChangeDueDate: dueDateChanged ? taskData.dueDateChangeReason : undefined
     });
 
-    console.log(updatedTask);
-
-    if (updatedTask) {
-      setTasks(prevTasks =>
-        prevTasks.map(task =>
-          task.id === updatedTask.id ? updatedTask : task
-        )
-      );
-
-      toast({
-        title: 'Task Updated',
-        description: 'Your task has been updated successfully'
-      });
-    }
-  } catch (err: any) {
-    setError(err.message || 'Failed to update task');
+    // Verify update was successful
+    setTasks(prev => prev.map(t => t.id === result.id ? result : t));
+    
+    toast({ title: 'Task Updated', description: 'Task updated successfully' });
+  } catch (err) {
+    // Rollback optimistic update - now existingTask is available
+    setTasks(prev => prev.map(t => t.id === existingTask.id ? existingTask : t));
     toast({
       title: 'Error',
-      description: 'Failed to update task',
+      description: err.message || 'Failed to update task',
       variant: 'destructive'
     });
   } finally {
     setIsLoading(false);
   }
 };
-
   // Delete a task
   const deleteTask = async (taskId: string) => {
     setIsLoading(true);
@@ -427,6 +387,50 @@ const updateTask = async (taskData: any) => {
     return users;
   };
 
+  // Fetch the latest due date change for a task
+  const fetchLatestDueDateChange = async (taskId: string): Promise<DueDateChange | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('due_date_change')
+        .select('*')
+        .eq('task_id', taskId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching latest due date change:', error);
+        return null;
+      }
+      
+      return data as DueDateChange;
+    } catch (err) {
+      console.error('Failed to fetch latest due date change:', err);
+      return null;
+    }
+  };
+
+  // Fetch all due date changes for a task
+  const fetchDueDateChanges = async (taskId: string): Promise<DueDateChange[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('due_date_change')
+        .select('*')
+        .eq('task_id', taskId)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching due date changes:', error);
+        return [];
+      }
+      
+      return data as DueDateChange[];
+    } catch (err) {
+      console.error('Failed to fetch due date changes:', err);
+      return [];
+    }
+  };
+
   // Apply filters to tasks
   const filteredTasks = tasks.filter(task => {
     // Filter by completion status
@@ -463,7 +467,9 @@ const updateTask = async (taskData: any) => {
     hideCompleted,
     setHideCompleted,
     selectedUserId,
-    setSelectedUserId
+    setSelectedUserId,
+    fetchLatestDueDateChange,
+    fetchDueDateChanges
   };
 
   return <TaskContext.Provider value={value}>{children}</TaskContext.Provider>;
