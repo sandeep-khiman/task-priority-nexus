@@ -163,33 +163,39 @@ useEffect(() => {
       let fetchedUsers: User[] = [];
       
       switch (profile.role) {
-        case 'admin':
-          fetchedUsers = await userService.getUsers();
-          break;
-        case 'manager':
-          // For managers, get all users from their teams
-          // This would need a more sophisticated query in a real app
-          fetchedUsers = await userService.getUsers();
-          break;
-        case 'team-lead':
-          // Get team members for this team lead
-          const teamMembers = await userService.getTeamMembersByLeadId(user.id);
-          // Also add the team lead themselves
-          const leadUser = await userService.getUserById(user.id);
-          if (leadUser) {
-            fetchedUsers = [leadUser, ...teamMembers];
-          } else {
-            fetchedUsers = teamMembers;
-          }
-          break;
-        case 'employee':
-          // Employees can only see themselves
-          const employeeUser = await userService.getUserById(user.id);
-          if (employeeUser) {
-            fetchedUsers = [employeeUser];
-          }
-          break;
-      }
+      case 'admin':
+        // Admins can see all users
+        fetchedUsers = await userService.getUsers();
+        break;
+        
+      case 'super-manager':
+        // Super managers can see all users where they are the manager (user.manager_id === user.id)
+        const allUsers = await userService.getUsers();
+        fetchedUsers = allUsers.filter(u => u.managerId === profile.id);
+        break;
+        
+      case 'manager':
+        // Managers can see users where they are the manager (user.manager_id === user.id)
+        const allUsersForManager = await userService.getUsers();
+        fetchedUsers = allUsersForManager.filter(u => u.managerId === profile.id);
+        break;
+        
+      case 'team-lead':
+        // Team leads can see their team members
+        const teamMembers = await userService.getTeamMembersByLeadId(user.id);
+        if (teamMembers) {
+          fetchedUsers = teamMembers;
+        }
+        break;
+        
+      case 'employee':
+        // Employees can only see themselves
+        const employeeUser = await userService.getUserById(user.id);
+        if (employeeUser) {
+          fetchedUsers = [employeeUser];
+        }
+        break;
+    }
       
       setUsers(fetchedUsers);
     } catch (err: any) {
