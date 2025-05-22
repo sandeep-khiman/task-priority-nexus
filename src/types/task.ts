@@ -3,7 +3,8 @@ export enum Quadrant {
   Important_Urgent = 1,
   Important_NotUrgent = 2,
   NotImportant_Urgent = 3,
-  NotImportant_NotUrgent = 4
+  NotImportant_NotUrgent = 4,
+  Routine_Tasks = 5
 }
 
 export interface Task {

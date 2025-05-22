@@ -224,9 +224,13 @@ async updateTask(task: UpdateTaskPayload): Promise<Task | null> {
   const oldDueDate = existingTask.due_date;
   const oldProgress = existingTask.progress;
   const newDueDate = task.dueDate;
+  const newProgress = task.progress;
+console.log(oldDueDate,"           ",newDueDate);
 
   // Track due date change
-  if (newDueDate !== undefined && newDueDate !== oldDueDate) {
+  if (newDueDate !== undefined && new Date(newDueDate).getTime() !== new Date(oldDueDate).getTime())  {
+    console.log("entered");
+    
     updates.due_date = newDueDate;
 
     const dueChange = {
@@ -245,16 +249,18 @@ async updateTask(task: UpdateTaskPayload): Promise<Task | null> {
       console.error('Failed to log due date change:', dueDateError);
     }
   }
+console.log("task: ",task);
 
   // Track progress change
-  if (task.progress !== undefined && task.progress !== oldProgress) {
+  if (newProgress!== undefined && newProgress !== oldProgress) {
     const progressUpdate = {
       task_id: task.id,
       previous_progress: oldProgress,
-      current_progress: task.progress,
-      updates: task.progressUpdateNote, // or allow task.reasonToChangeProgress if you track it
+      current_progress: newProgress,
+      updates: task.progressUpdateNote||'update via system',
       created_at: new Date().toISOString(),
     };
+console.log("progressUpdate: ",progressUpdate);
 
     const { error: progressUpdateError } = await supabase
       .from('task_progress_update')

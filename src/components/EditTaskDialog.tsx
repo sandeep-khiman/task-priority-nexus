@@ -47,7 +47,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Slider } from "@/components/ui/slider";
 import { useTaskContext } from "@/contexts/TaskContext";
-import { Task, Quadrant, DueDateChange, TaskProgressUpdate } from "@/types/task";
+import {
+  Task,
+  Quadrant,
+  DueDateChange,
+  TaskProgressUpdate,
+} from "@/types/task";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -63,6 +68,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { Tabs } from "@radix-ui/react-tabs";
 
 const formSchema = z
   .object({
@@ -75,7 +81,7 @@ const formSchema = z
     dueDateReason: z.string().optional(),
     assignedToId: z.string().min(1, { message: "Please select an assignee" }),
     progress: z.number().int().min(0).max(100),
-    progressUpdateNote:z.string().optional()
+    progressUpdateNote: z.string().optional(),
   })
   .refine(
     (data) =>
@@ -101,21 +107,28 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
   const [showModal, setShowModal] = useState(false);
   const [dueDateChanged, setDueDateChanged] = useState(false);
   const [dueDateChangeReason, setDueDateChangeReason] = useState("");
+  const [progressChanged, setProgressChanged] = useState(false);
   const [progressChangeUpdate, setProgressChangeUpdate] = useState("");
   const [lastDueDateChange, setLastDueDateChange] =
     useState<DueDateChange | null>(null);
   const [dueDateHistory, setDueDateHistory] = useState<DueDateChange[]>([]);
-  const [historySheetOpen, setHistorySheetOpen] = useState(false);
-const [showProgressModal, setShowProgressModal] = useState(false);
-const [progressUpdateNotes, setProgressUpdateNotes] = useState('');
-const [previousProgress, setPreviousProgress] = useState(0);
-const [progressHistory, setProgressHistory] = useState<TaskProgressUpdate[]>([]);
-const [lastProgressUpdate, setLastProgressUpdate] = useState<TaskProgressUpdate | null>(null);
+  const [showProgressModal, setShowProgressModal] = useState(false);
+  const [previousProgress, setPreviousProgress] = useState(0);
+  const [lastProgressUpdate, setLastProgressUpdate] =
+    useState<TaskProgressUpdate | null>(null);
+  const [progressHistory, setProgressHistory] = useState<TaskProgressUpdate[]>(
+    []
+  );
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isProgressSheetOpen, setIsProgressSheetOpen] = useState(false);
+
   const {
     updateTask,
     getVisibleUsers,
     fetchLatestDueDateChange,
     fetchDueDateChanges,
+    fetchLatestProgressChange,
+    fetchProgressChanges,
   } = useTaskContext();
   const { toast } = useToast();
   const visibleUsers = getVisibleUsers();
@@ -133,61 +146,21 @@ const [lastProgressUpdate, setLastProgressUpdate] = useState<TaskProgressUpdate 
       });
     }
   }, [open, task.id, fetchLatestDueDateChange, fetchDueDateChanges]);
-// Fetch progress history when component mounts
-useEffect(() => {
-  
-  const fetchProgressHistory = async () => {
-    try {
-      const response = await fetch(`/api/tasks/${task.id}/progress-updates`);
-      const data = await response.json();
-      console.log(data);
-      
-      setProgressHistory(data);
-      if (data.length > 0) {
-        setLastProgressUpdate(data[0]);
-      }
-    } catch (error) {
-      console.error('Error fetching progress history:', error);
+
+  // Fetch progress history when component mounts
+  useEffect(() => {
+    if (open && task.id) {
+      fetchLatestProgressChange(task.id).then((change) => {
+        setLastProgressUpdate(change);
+      });
+
+      // Also fetch all history
+      fetchProgressChanges(task.id).then((history) => {
+        setProgressHistory(history);
+      });
     }
-  };
-  fetchProgressHistory();
-}, [task.id]);
+  }, [open, task.id, fetchLatestProgressChange, fetchProgressChanges]);
 
-// Handle submitting progress updates
-const handleProgressUpdate = async (notes: string) => {
-  try {
-    const currentProgress = form.getValues('progress');
-    
-    const response = await fetch('/api/tasks/progress-updates', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        task_id: task.id,
-        current_progress: currentProgress,
-        previous_progress: previousProgress,
-        updates: progressChangeUpdate,
-      }),
-    });
-
-    const newUpdate = await response.json();
-    setProgressHistory([newUpdate, ...progressHistory]);
-    setLastProgressUpdate(newUpdate);
-    
-    toast({
-      title: 'Progress updated',
-      description: 'Your progress update has been saved',
-    });
-  } catch (error) {
-    toast({
-      title: 'Error',
-      description: 'Failed to save progress update',
-      variant: 'destructive',
-    });
-    console.error('Error saving progress update:', error);
-  }
-};
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -200,7 +173,7 @@ const handleProgressUpdate = async (notes: string) => {
       progress: task.progress,
       lastDueDate: task.dueDate ? new Date(task.dueDate) : null,
       dueDateReason: dueDateChangeReason,
-      progressUpdateNote : progressChangeUpdate,
+      progressUpdateNote: progressChangeUpdate,
     },
   });
 
@@ -223,8 +196,11 @@ const handleProgressUpdate = async (notes: string) => {
         values.dueDate &&
         task.dueDate &&
         new Date(values.dueDate).toISOString() !== task.dueDate;
-      console.log("-----------------------", hasDueDateChanged);
 
+      const hasProgressChanged =
+        values.progress && task.progress && values.progress !== task.progress;
+
+      console.log("Progress-----------------------", hasProgressChanged);
       await updateTask({
         ...task,
         title: values.title,
@@ -238,7 +214,9 @@ const handleProgressUpdate = async (notes: string) => {
         dueDateChangeReason: hasDueDateChanged
           ? dueDateChangeReason
           : undefined,
-          
+        progressUpdateNote: hasProgressChanged
+          ? progressChangeUpdate
+          : undefined,
       });
 
       toast({
@@ -544,87 +522,129 @@ const handleProgressUpdate = async (notes: string) => {
               <FormField
                 control={form.control}
                 name="lastDueDate"
-                render={({ field }) => (
+                render={() => (
                   <FormItem className="flex-col">
                     <FormLabel>Last Due Date</FormLabel>
                     <FormControl>
-                      <HoverCard>
-                        <HoverCardTrigger asChild>
-                          <Sheet>
-                            <SheetTrigger asChild>
-                              <div className="cursor-pointer">
-                                {" "}
-                                {/* Combined trigger */}
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  className="w-full pl-3 text-left font-normal flex justify-between items-center hover:bg-accent"
-                                >
-                                  <div>
-                                    {lastDueDateChange
-                                      ? format(
-                                          new Date(
-                                            lastDueDateChange.last_due_date
-                                          ),
-                                          "MMM d, yyyy"
-                                        )
-                                      : task.dueDate
-                                      ? format(
-                                          new Date(task.dueDate),
-                                          "MMM d, yyyy"
-                                        )
-                                      : "No previous date"}
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <LucideFileText className="h-4 w-4 opacity-50" />
-                                    <HelpCircle className="h-3 w-3 opacity-50" />
-                                  </div>
-                                </Button>
-                              </div>
-                            </SheetTrigger>
-                            <SheetContent
-                              side="right"
-                              className="w-[400px] sm:w-[540px]"
+                      <>
+                        <HoverCard>
+                          <HoverCardTrigger asChild>
+                            <div
+                              className="cursor-pointer"
+                              onClick={() => setIsSheetOpen(true)} // manually open sheet
                             >
-                              {/* Your sheet content here */}
-                            </SheetContent>
-                          </Sheet>
-                        </HoverCardTrigger>
-                        <HoverCardContent
-                          className="w-80 z-50"
-                          align="start"
-                          side="bottom"
-                          onPointerDownOutside={(e) => e.preventDefault()} // Prevent closing on click
-                        >
-                          <div className="space-y-2">
-                            <h4 className="text-sm font-semibold">
-                              Last Change Details
-                            </h4>
-                            {lastDueDateChange ? (
-                              <>
-                                <div className="text-sm">
-                                  <span className="font-medium">
-                                    Changed on:
-                                  </span>{" "}
-                                  {format(
-                                    new Date(lastDueDateChange.created_at),
-                                    "PPP"
-                                  )}
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="w-full pl-3 text-left font-normal flex justify-between items-center hover:bg-accent"
+                              >
+                                <div>
+                                  {lastDueDateChange
+                                    ? format(
+                                        new Date(
+                                          lastDueDateChange.last_due_date
+                                        ),
+                                        "MMM d, yyyy"
+                                      )
+                                    : task.dueDate
+                                    ? format(
+                                        new Date(task.dueDate),
+                                        "MMM d, yyyy"
+                                      )
+                                    : "No previous date"}
                                 </div>
-                                <div className="text-sm">
-                                  <span className="font-medium">Reason:</span>{" "}
-                                  {lastDueDateChange.reason_to_change ||
-                                    "No reason provided"}
+                                <LucideFileText className="h-4 w-4 opacity-50" />
+                              </Button>
+                            </div>
+                          </HoverCardTrigger>
+
+                          <HoverCardContent
+                            className="w-80 z-50"
+                            align="start"
+                            side="bottom"
+                            onPointerDownOutside={(e) => e.preventDefault()}
+                          >
+                            <div className="space-y-2">
+                              <h4 className="text-sm font-semibold">
+                                Last Change Details
+                              </h4>
+                              {lastDueDateChange ? (
+                                <>
+                                  <div className="text-sm">
+                                    <span className="font-medium">
+                                      Changed on:
+                                    </span>{" "}
+                                    {format(
+                                      new Date(lastDueDateChange.created_at),
+                                      "PPP"
+                                    )}
+                                  </div>
+                                  <div className="text-sm">
+                                    <span className="font-medium">Reason:</span>{" "}
+                                    {lastDueDateChange.reason_to_change ||
+                                      "No reason provided"}
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="text-sm text-muted-foreground">
+                                  No change history available
                                 </div>
-                              </>
-                            ) : (
-                              <div className="text-sm text-muted-foreground">
-                                No change history available
-                              </div>
-                            )}
-                          </div>
-                        </HoverCardContent>
-                      </HoverCard>
+                              )}
+                            </div>
+                          </HoverCardContent>
+                        </HoverCard>
+
+                        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+                          <SheetContent
+                            side="right"
+                            className="w-[400px] sm:w-[540px]"
+                          >
+                            <div className="p-4">
+                              <h2 className="text-xl font-bold mb-4">
+                                Detailed Due Date History
+                              </h2>
+
+                              {dueDateHistory.length === 0 ? (
+                                <p className="text-muted-foreground">
+                                  No due date history available.
+                                </p>
+                              ) : (
+                                <div className="space-y-4">
+                                  {dueDateHistory.map((entry) => (
+                                    <div
+                                      key={entry.id}
+                                      className="border rounded-lg p-4 shadow-sm"
+                                    >
+                                      <div className="text-sm text-muted-foreground mb-2">
+                                        <strong>Changed on:</strong>{" "}
+                                        {new Date(
+                                          entry.created_at
+                                        ).toLocaleString()}
+                                      </div>
+                                      <div className="text-sm">
+                                        <strong>Last Due Date:</strong>{" "}
+                                        {new Date(
+                                          entry.last_due_date
+                                        ).toLocaleDateString()}
+                                      </div>
+                                      <div className="text-sm">
+                                        <strong>Updated Due Date:</strong>{" "}
+                                        {new Date(
+                                          entry.updated_due_date
+                                        ).toLocaleDateString()}
+                                      </div>
+                                      <div className="text-sm">
+                                        <strong>Reason:</strong>{" "}
+                                        {entry.reason_to_change}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </SheetContent>
+                        </Sheet>
+                      </>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -632,138 +652,215 @@ const handleProgressUpdate = async (notes: string) => {
               />
             </div>
 
-  <div className="grid grid-cols-2 gap-4">
-  <FormField
-    control={form.control}
-    name="progress"
-    render={({ field }) => {
-      const handleProgressChange = (values: number[]) => {
-        const newValue = values[0];
-        const currentValue = field.value || 0;
+            <div className=" flex justify-between">
+              <FormField
+                control={form.control}
+                name="progress"
+                render={({ field }) => {
+                  const handleProgressChange = (values: number[]) => {
+                    const newValue = values[0];
+                    const currentValue = field.value || 0;
 
-        // Only allow progress to increase
-        if (newValue < currentValue) return;
+                    // Only allow progress to increase
+                    if (newValue < currentValue) return;
 
-        if (newValue > currentValue) {
-          setPreviousProgress(currentValue);
-          field.onChange(newValue);
-          setShowProgressModal(true);
-        } else {
-          field.onChange(newValue);
-        }
-      };
+                    if (newValue > currentValue) {
+                      setPreviousProgress(currentValue);
+                      field.onChange(newValue);
+                      setShowProgressModal(true);
+                    } else {
+                      field.onChange(newValue);
+                    }
+                  };
 
-      return (
-        <>
-          <FormItem>
-            <FormLabel>Progress</FormLabel>
-            <FormControl>
-              <div className="flex items-center gap-4">
-                <Slider
-                  min={0}
-                  max={100}
-                  step={5}
-                  value={[field.value || 0]}
-                  onValueChange={handleProgressChange}
-                  className="flex-1"
-                />
-                <span className="w-12 text-right">{field.value || 0}%</span>
-              </div>
-            </FormControl>
-            <FormMessage />
-          </FormItem>
+                  return (
+                    <>
+                      <FormItem>
+                        <FormLabel>Progress</FormLabel>
+                        <FormControl>
+                          <div className="flex items-center gap-4 w-80">
+                            <Slider
+                              min={0}
+                              max={100}
+                              step={5}
+                              value={[field.value || 0]}
+                              onValueChange={handleProgressChange}
+                              className="flex-1"
+                            />
+                            <span className="w-12 text-right">
+                              {field.value || 0}%
+                            </span>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
 
-          {/* Progress Update Modal */}
-          <Dialog open={showProgressModal} onOpenChange={setShowProgressModal}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Progress Update</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <Textarea
-                  placeholder="What's been completed since last update?"
-                  value={progressUpdateNotes}
-                  onChange={(e) => setProgressUpdateNotes(e.target.value)}
-                  className="min-h-[120px]"
-                />
-                <div className="flex justify-end gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      field.onChange(previousProgress);
-                      setShowProgressModal(false);
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      handleProgressUpdate(progressUpdateNotes);
-                      setProgressUpdateNotes('');
-                      setShowProgressModal(false);
-                    }}
-                    disabled={!progressUpdateNotes.trim()}
-                  >
-                    Save Update
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </>
-      );
-    }}
-  />
+                      {/* Progress Update Modal */}
+                      <Dialog
+                        open={showProgressModal}
+                        onOpenChange={setShowProgressModal}
+                      >
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Progress Update</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <Textarea
+                              placeholder="What's been completed since last update?"
+                              value={progressChangeUpdate}
+                              onChange={(e) =>
+                                setProgressChangeUpdate(e.target.value)
+                              }
+                              className="min-h-[120px]"
+                            />
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                  // Reset due date to original
+                                  form.setValue(
+                                    "progress",
+                                    task.progress ? task.progress : null
+                                  );
+                                  setShowProgressModal(false);
+                                  setProgressChanged(false);
+                                }}
+                              >
+                                Cancel
+                              </Button>
+                              <Button
+                                type="button"
+                                onClick={() => {
+                                  // Just close the modal, keeping the new date
+                                  form.setValue(
+                                    "progressUpdateNote",
+                                    progressChangeUpdate
+                                  );
+                                  setShowProgressModal(false);
+                                  setProgressChanged(true);
+                                }}
+                                disabled={!progressChangeUpdate.trim()}
+                              >
+                                Confirm
+                              </Button>
+                            </div>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </>
+                  );
+                }}
+              />
 
-  <FormField
-    control={form.control}
-    name="progressUpdateNote"
-    render={({ field }) => (
-      <FormItem>
-        <FormControl>
-          <HoverCard>
-            <HoverCardTrigger asChild>
-              <div className="cursor-pointer h-full">
-                <Button
-                  variant="outline"
-                  className="flex items-center justify-between py-6 px-4 hover:bg-accent"
-                >
-                  <LucideFileText className="h-4 w-4 opacity-70" />
-                </Button>
-              </div>
-            </HoverCardTrigger>
-            
-            <HoverCardContent className="w-20 z-50" align="start" side="bottom">
-              {lastProgressUpdate ? (
-                <div className="space-y-2">
-                  <div className="text-sm">
-                    <span className="font-medium">Updated:</span>{" "}
-                    {format(new Date(lastProgressUpdate.created_at), "PPP")}
+              <FormField
+                control={form.control}
+                name="progressUpdateNote"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <HoverCard>
+                        <HoverCardTrigger asChild>
+                          <div
+                            className="cursor-pointer"
+                            onClick={() => setIsProgressSheetOpen(true)} // manually open sheet
+                          >
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="p-3 mt-3 text-left font-normal hover:bg-accent"
+                            >
+                              <LucideFileText className="h-4 w-4 opacity-50" />
+                            </Button>
+                          </div>
+                        </HoverCardTrigger>
+
+                        <HoverCardContent
+                          className="w-80 z-50"
+                          align="start"
+                          side="bottom"
+                        >
+                          {lastProgressUpdate ? (
+                            <div className="space-y-2">
+                              <div className="text-sm">
+                                <span className="font-medium">Updated:</span>{" "}
+                                {format(
+                                  new Date(lastProgressUpdate.created_at),
+                                  "PPP"
+                                )}
+                              </div>
+                              <div className="text-sm">
+                                <span className="font-medium">
+                                  Progress change:
+                                </span>{" "}
+                                {lastProgressUpdate.previous_progress}% →{" "}
+                                {lastProgressUpdate.current_progress}%
+                              </div>
+                              {lastProgressUpdate.updates && (
+                                <div className="text-sm flex gap-2">
+                                  <span className="font-medium">Notes:</span>
+                                  {lastProgressUpdate.updates}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="text-sm text-muted-foreground">
+                              No update history available
+                            </div>
+                          )}
+                        </HoverCardContent>
+                      </HoverCard>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <Sheet
+                open={isProgressSheetOpen}
+                onOpenChange={setIsProgressSheetOpen}
+              >
+                <SheetContent side="right" className="w-[400px] sm:w-[540px]">
+                  <div className="p-4">
+                    {progressHistory.length === 0 ? (
+                      <p className="text-muted-foreground mt-6">
+                        No progress history available.
+                      </p>
+                    ) : (
+                      <div className="mt-6">
+                        <h2 className="text-xl font-bold mb-4">
+                          Progress Update History
+                        </h2>
+                        <div className="space-y-4">
+                          {progressHistory.map((entry) => (
+                            <div
+                              key={entry.id}
+                              className="border rounded-lg p-4 shadow-sm"
+                            >
+                              <div className="text-sm text-muted-foreground mb-2">
+                                <strong>Updated on:</strong>{" "}
+                                {new Date(entry.created_at).toLocaleString()}
+                              </div>
+                              <div className="text-sm">
+                                <strong>Previous Progress:</strong>{" "}
+                                {entry.previous_progress}%
+                              </div>
+                              <div className="text-sm">
+                                <strong>Current Progress:</strong>{" "}
+                                {entry.current_progress}%
+                              </div>
+                              <div className="text-sm">
+                                <strong>Work Done:</strong> {entry.updates}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div className="text-sm">
-                    <span className="font-medium">Progress change:</span>{" "}
-                    {lastProgressUpdate.previous_progress}% → {lastProgressUpdate.current_progress}%
-                  </div>
-                  {lastProgressUpdate.updates && (
-                    <div className="text-sm">
-                      <span className="font-medium">Notes:</span>{" "}
-                      <p className="mt-1">{lastProgressUpdate.updates}</p>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-sm text-muted-foreground">
-                  No update history available
-                </div>
-              )}
-            </HoverCardContent>
-          </HoverCard>
-        </FormControl>
-        <FormMessage />
-      </FormItem>
-    )}
-  />
-</div>
+                </SheetContent>
+              </Sheet>
+            </div>
             <div className="flex justify-end space-x-2 pt-4">
               <Button
                 type="button"

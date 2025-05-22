@@ -230,7 +230,7 @@ export default function Login() {
                 </div>
               </div>
 
-              {!isLogin && (
+              {/* {!isLogin && (
                 <div className="grid gap-2">
                   <Label htmlFor="role">Role</Label>
                   <Select
@@ -248,7 +248,7 @@ export default function Login() {
                     </SelectContent>
                   </Select>
                 </div>
-              )}
+              )} */}
 
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading
@@ -282,7 +282,7 @@ export default function Login() {
             </Button>
           </CardFooter>
         </Card>
-        {/* Demo login info - This would be removed in a production environment */}
+        {/* Demo login info - This would be removed in a production environment
         <div className="mt-4 p-4 bg-muted rounded-lg text-sm">
           <h3 className="font-medium mb-2">Demo Instructions:</h3>
           <p className="mb-2">
@@ -292,7 +292,7 @@ export default function Login() {
           <p>
             First user to register as admin will have full access to the system.
           </p>
-        </div>
+        </div> */}
       </div>
     </div>
   );

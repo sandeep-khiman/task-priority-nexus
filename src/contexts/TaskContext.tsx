@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Task, Quadrant, DueDateChange } from '@/types/task';
+import { Task, Quadrant, DueDateChange, TaskProgressUpdate } from '@/types/task';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext'; 
 import { taskService } from '@/services/taskService';
@@ -34,6 +34,8 @@ interface TaskContextType {
   setSelectedUserId: (userId: string | null) => void;
   fetchLatestDueDateChange: (taskId: string) => Promise<DueDateChange | null>;
   fetchDueDateChanges: (taskId: string) => Promise<DueDateChange[]>;
+  fetchLatestProgressChange :(taskId :string) => Promise<TaskProgressUpdate | null>;
+  fetchProgressChanges :(taskId :string) => Promise<TaskProgressUpdate[]>;
 }
 
 const initialFilterState: TaskFilterState = {
@@ -256,10 +258,16 @@ const updateTask = async (taskData: any) => {
 
     // Actual update
     const dueDateChanged = existingTask.dueDate !== taskData.dueDate;
+    
+    const progressChanged = existingTask.progress !== taskData.progress;
+    console.log("progressChanged: ",progressChanged);
+    
     const result = await taskService.updateTask({
       ...taskData,
-      reasonToChangeDueDate: dueDateChanged ? taskData.dueDateChangeReason : undefined
+      reasonToChangeDueDate: dueDateChanged ? taskData.dueDateChangeReason : undefined,
+      progressUpdateNote:progressChanged?taskData.progressUpdateNote:undefined
     });
+console.log("result: ",result);
 
     // Verify update was successful
     setTasks(prev => prev.map(t => t.id === result.id ? result : t));
@@ -430,6 +438,48 @@ const updateTask = async (taskData: any) => {
       return [];
     }
   };
+const fetchLatestProgressChange = async (taskId: string): Promise<TaskProgressUpdate | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('task_progress_update')
+        .select('*')
+        .eq('task_id', taskId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching latest due date change:', error);
+        return null;
+      }
+      
+      return data as TaskProgressUpdate;
+    } catch (err) {
+      console.error('Failed to fetch latest due date change:', err);
+      return null;
+    }
+  };
+
+  // Fetch all due date changes for a task
+  const fetchProgressChanges = async (taskId: string): Promise<TaskProgressUpdate[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('task_progress_update')
+        .select('*')
+        .eq('task_id', taskId)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching due date changes:', error);
+        return [];
+      }
+      
+      return data as TaskProgressUpdate[];
+    } catch (err) {
+      console.error('Failed to fetch due date changes:', err);
+      return [];
+    }
+  };
 
   // Apply filters to tasks
   const filteredTasks = tasks.filter(task => {
@@ -469,7 +519,9 @@ const updateTask = async (taskData: any) => {
     selectedUserId,
     setSelectedUserId,
     fetchLatestDueDateChange,
-    fetchDueDateChanges
+    fetchDueDateChanges,
+    fetchLatestProgressChange,
+    fetchProgressChanges
   };
 
   return <TaskContext.Provider value={value}>{children}</TaskContext.Provider>;

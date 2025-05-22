@@ -11,6 +11,7 @@ export function TaskFilter() {
   const { profile } = useAuth();
   const visibleUsers = getVisibleUsers();
 
+
   // Get user role label for display
   const getUserRoleLabel = (role: string) => {
     switch (role) {
@@ -26,37 +27,43 @@ export function TaskFilter() {
   };
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow-sm border">
+    <div className="bg-[#7C8EA4] p-4 rounded-lg shadow-sm border">
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         <div className="flex-1">
-          <Select
-            value={selectedUserId || 'all'}
-            onValueChange={value => setSelectedUserId(value === 'all' ? null : value)}
-          >
-            <SelectTrigger className="w-full sm:w-[250px]">
-              <SelectValue placeholder="Filter by team member" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All team members</SelectItem>
-              {visibleUsers.map(user => (
-                <SelectItem key={user.id} value={user.id}>
-                  <div className="flex items-center">
-                    <span>{user.name}</span>
-                    {getUserRoleLabel(user.role)}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        
+  {profile.role === 'employee' ? (
+    <div className="text-lg font-medium">
+      Hello, {profile.name}!
+    </div>
+  ) : (
+    <Select
+      value={selectedUserId || 'all'}
+      onValueChange={value => setSelectedUserId(value === 'all' ? null : value)}
+    >
+      <SelectTrigger className="w-full sm:w-[250px]">
+        <SelectValue placeholder="Filter by team member" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">All team members</SelectItem>
+        {visibleUsers.map(user => (
+          <SelectItem key={user.id} value={user.id}>
+            <div className="flex items-center">
+              <span>{user.name}</span>
+              {getUserRoleLabel(user.role)}
+            </div>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )}
+</div>
+
         <div className="flex items-center space-x-2">
           <Switch
             id="hide-completed"
             checked={hideCompleted}
             onCheckedChange={setHideCompleted}
           />
-          <Label htmlFor="hide-completed">Hide completed tasks</Label>
+          <Label htmlFor="hide-completed" className='text-white'>Hide completed tasks</Label>
         </div>
       </div>
     </div>

@@ -10,14 +10,14 @@ export default function Teams() {
   const { isAuthenticated, profile } = useAuth();
   const { toast } = useToast();
   
-  useEffect(() => {
-    if (profile) {
-      toast({
-        title: `Welcome to Team Management`,
-        description: 'Here you can view and manage teams.',
-      });
-    }
-  }, [profile, toast]);
+  // useEffect(() => {
+  //   if (profile) {
+  //     toast({
+  //       title: `Welcome to Team Management`,
+  //       description: 'Here you can view and manage teams.',
+  //     });
+  //   }
+  // }, [profile, toast]);
 
   if (!isAuthenticated) {
     return <Navigate to="/login" />;

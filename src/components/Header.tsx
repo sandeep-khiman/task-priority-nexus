@@ -46,11 +46,11 @@ export function Header() {
       };
 
   return (
-    <header className="border-b">
+    <header className="border-b bg-[#7C8EA4] ">
       <div className="container flex h-16 items-center justify-between">
         {/* Left Side */}
         <div className="flex items-center gap-6">
-          <Link to="/" className="font-bold text-lg">
+          <Link to="/" className="font-bold text-4xl">
             TaskFlow
           </Link>
 
@@ -61,7 +61,7 @@ export function Header() {
                 className={cn(
                   'px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2',
                   useIsActive('/dashboard',true) ? 'bg-primary text-white'
-                    : 'text-gray-600 hover:text-primary'
+                    : 'text-white hover:text-primary'
                 )}
               >
                 Dashboard
@@ -73,7 +73,7 @@ export function Header() {
                   className={cn(
                     'px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2',
                     useIsActive(profile.role === 'manager' ? '/manager' : '/teams',true)? 'bg-primary text-white'
-                    : 'text-gray-600 hover:text-primary'
+                    : 'text-white hover:text-primary'
                   )}
                 >
                   Teams
@@ -87,7 +87,7 @@ export function Header() {
                     'px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2',
                     useIsActive('/admin', true)
                     ? 'bg-primary text-white'
-                    : 'text-gray-600 hover:text-primary'
+                    : 'text-white hover:text-primary'
                   )}
                 >
                   Admin
@@ -101,7 +101,7 @@ export function Header() {
                   'px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2',
                   useIsActive('/reportDashboard', true)
                     ? 'bg-primary text-white'
-                    : 'text-gray-600 hover:text-primary'
+                    : 'text-white hover:text-primary'
                 )}
               >
                 Report Dashboard
@@ -113,7 +113,7 @@ export function Header() {
                   'px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2',
                   useIsActive('/employee-management', true)
                     ? 'bg-primary text-white'
-                    : 'text-gray-600 hover:text-primary'
+                    : 'text-white hover:text-primary'
                 )}
               >
                 Employee
@@ -158,19 +158,19 @@ export function Header() {
                 </Link>
               </DropdownMenuItem>
 
-              <DropdownMenuItem asChild>
+              {/* <DropdownMenuItem asChild>
                 <Link to="/tasks">
                   <ListTodo className="mr-2 h-4 w-4" />
                   My Tasks
                 </Link>
-              </DropdownMenuItem>
+              </DropdownMenuItem> */}
 
-              <DropdownMenuItem asChild>
+              {/* <DropdownMenuItem asChild>
                 <Link to="/reset-password" className="flex items-center">
                   <KeyRound className="mr-2 h-4 w-4" />
                   Reset Password
                 </Link>
-              </DropdownMenuItem>
+              </DropdownMenuItem> */}
 
               <DropdownMenuSeparator />
 

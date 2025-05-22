@@ -18,12 +18,12 @@ export default function ManagerDashboard() {
   
   useEffect(() => {
     // Welcome message
-    if (profile?.role === 'manager') {
-      toast({
-        title: `Welcome, ${profile.name}`,
-        description: 'Here you can manage your teams and team members.',
-      });
-    }
+    // if (profile?.role === 'manager') {
+    //   toast({
+    //     title: `Welcome, ${profile.name}`,
+    //     description: 'Here you can manage your teams and team members.',
+    //   });
+    // }
     
     // Fetch team members under this manager
     const fetchTeamMembers = async () => {

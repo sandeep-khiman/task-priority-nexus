@@ -13,31 +13,31 @@ export default function Dashboard() {
   const { isAuthenticated, profile } = useAuth();
   const { toast } = useToast();
   
-  useEffect(() => {
-    // Welcome message showing role-specific info
-    if (profile) {
-      let message = '';
-      switch (profile.role) {
-        case 'admin':
-          message = 'You have full access to all tasks and users.';
-          break;
-        case 'manager':
-          message = 'You can view and manage tasks for your team leads and employees.';
-          break;
-        case 'team-lead':
-          message = 'You can view and manage tasks for your team members.';
-          break;
-        case 'employee':
-          message = 'You can view and manage your personal tasks.';
-          break;
-      }
+  // useEffect(() => {
+  //   // Welcome message showing role-specific info
+  //   if (profile) {
+  //     let message = '';
+  //     switch (profile.role) {
+  //       case 'admin':
+  //         message = 'You have full access to all tasks and users.';
+  //         break;
+  //       case 'manager':
+  //         message = 'You can view and manage tasks for your team leads and employees.';
+  //         break;
+  //       case 'team-lead':
+  //         message = 'You can view and manage tasks for your team members.';
+  //         break;
+  //       case 'employee':
+  //         message = 'You can view and manage your personal tasks.';
+  //         break;
+  //     }
       
-      toast({
-        title: `Welcome, ${profile.name}`,
-        description: message,
-      });
-    }
-  }, [profile, toast]);
+  //     toast({
+  //       title: `Welcome, ${profile.name}`,
+  //       description: message,
+  //     });
+  //   }
+  // }, []);
 
   if (!isAuthenticated) {
     return <Navigate to="/login" />;

@@ -1,10 +1,10 @@
-
 import { useState } from 'react';
 import { Task, Quadrant } from '@/types/task';
 import TaskCard from './TaskCard';
+import TaskCardSkeleton from './TaskCardSkeleton';
 import { useTaskContext } from '@/contexts/TaskContext';
 import { cn } from '@/lib/utils';
-import { 
+import {
   AlertTriangle,
   Target,
   Clock,
@@ -37,10 +37,10 @@ interface QuadrantProps {
 }
 
 function QuadrantColumn({ quadrant, tasks }: QuadrantProps) {
-  const { moveTask } = useTaskContext();
+  const { moveTask, isLoading } = useTaskContext();
   const [isDragOver, setIsDragOver] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  
+
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
@@ -64,12 +64,12 @@ function QuadrantColumn({ quadrant, tasks }: QuadrantProps) {
   const hasMoreTasks = tasks.length > 5;
 
   return (
-    <div className="flex flex-col h-full bg-white p-2 rounded-lg border shadow-sm">
-      <h2 className="font-medium mb-2 flex items-center text-sm">
+    <div className="flex flex-col h-full bg-[#7C8EA4] p-2 rounded-lg border shadow-sm">
+      <h2 className="font-medium mb-2 flex items-center text-sm text-white">
         <span className="mr-1">{quadrantIcons[quadrant]}</span>
         {quadrantLabels[quadrant]}
       </h2>
-      <div 
+      <div
         className={cn(
           'quadrant flex-1 overflow-y-auto rounded-md p-1 bg-gray-50',
           { 'bg-blue-50 border-2 border-dashed border-blue-300': isDragOver },
@@ -80,7 +80,11 @@ function QuadrantColumn({ quadrant, tasks }: QuadrantProps) {
         onDrop={handleDrop}
       >
         <div className="space-y-2">
-          {displayTasks.length === 0 ? (
+          {isLoading ? (
+            Array.from({ length: 3 }).map((_, idx) => (
+              <TaskCardSkeleton key={idx} />
+            ))
+          ) : displayTasks.length === 0 ? (
             <div className="text-center text-muted-foreground py-2 text-xs">
               No tasks in this quadrant
             </div>
@@ -92,20 +96,20 @@ function QuadrantColumn({ quadrant, tasks }: QuadrantProps) {
         </div>
       </div>
       {hasMoreTasks && (
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="mt-1 text-xs flex items-center justify-center py-0 h-6"
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mt-1 text-xs flex items-center justify-center py-0 h-6 text-white"
           onClick={() => setIsExpanded(!isExpanded)}
         >
           {isExpanded ? (
             <>
-              <ChevronUp className="h-3 w-3 mr-1" />
+              <ChevronUp className="h-3 w-3 mr-1 text-white" />
               Show Less
             </>
           ) : (
             <>
-              <ChevronDown className="h-3 w-3 mr-1" />
+              <ChevronDown className="h-3 w-3 mr-1 text-white" />
               Show All ({tasks.length})
             </>
           )}
@@ -117,13 +121,13 @@ function QuadrantColumn({ quadrant, tasks }: QuadrantProps) {
 
 export default function QuadrantBoard() {
   const { filteredTasks } = useTaskContext();
-  
+
   const quadrant1Tasks = filteredTasks.filter(task => task.quadrant === 1);
   const quadrant2Tasks = filteredTasks.filter(task => task.quadrant === 2);
   const quadrant3Tasks = filteredTasks.filter(task => task.quadrant === 3);
   const quadrant4Tasks = filteredTasks.filter(task => task.quadrant === 4);
   const routineTasks = filteredTasks.filter(task => task.quadrant === 5);
-  
+
   return (
     <div className="space-y-4">
       {/* Eisenhower Matrix - 2x2 Grid */}
@@ -133,7 +137,7 @@ export default function QuadrantBoard() {
         <QuadrantColumn quadrant={3} tasks={quadrant3Tasks} />
         <QuadrantColumn quadrant={4} tasks={quadrant4Tasks} />
       </div>
-      
+
       {/* Routine Tasks Section */}
       <div className="mt-3">
         <QuadrantColumn quadrant={5} tasks={routineTasks} />

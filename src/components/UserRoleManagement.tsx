@@ -1,25 +1,43 @@
-
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { UserRole, User } from '@/types/user';
-import { useToast } from '@/components/ui/use-toast';
-import { Badge } from '@/components/ui/badge';
-import { userService } from '@/services/userService';
-import { supabase } from '@/integrations/supabase/client';
-import { 
+import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { UserRole, User } from "@/types/user";
+import { useToast } from "@/components/ui/use-toast";
+import { Badge } from "@/components/ui/badge";
+import { userService } from "@/services/userService";
+import { supabase } from "@/integrations/supabase/client";
+import {
   Dialog,
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle 
-} from '@/components/ui/dialog';
-import { CreateUserDialog } from './CreateUserDialog';
-import { ChangeManagerDialog } from './ChangeManagerDialog';
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { CreateUserDialog } from "./CreateUserDialog";
+import { ChangeManagerDialog } from "./ChangeManagerDialog";
 
 export function UserRoleManagement() {
   const { profile: currentUserProfile } = useAuth();
@@ -28,114 +46,147 @@ export function UserRoleManagement() {
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [managers, setManagers] = useState<User[]>([]);
+  const [superManagers, setSuperManagers] = useState<User[]>([]);
   const [showManagerDialog, setShowManagerDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [pendingRole, setPendingRole] = useState<UserRole | null>(null);
-  const [selectedManagerId, setSelectedManagerId] = useState<string>('');
+  const [selectedManagerId, setSelectedManagerId] = useState<string>("");
+  const [role , setRole] = useState();
 
   useEffect(() => {
     fetchUsers();
 
     // Set up a subscription to profile changes
     const channel = supabase
-      .channel('profiles-changes')
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'profiles' 
-      }, () => {
-        // Refresh users when profiles change
-        fetchUsers();
-      })
+      .channel("profiles-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "profiles",
+        },
+        () => {
+          // Refresh users when profiles change
+          fetchUsers();
+        }
+      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
   }, []);
-  
+
   const fetchUsers = async () => {
     try {
       setIsLoading(true);
       const fetchedUsers = await userService.getUsers();
-      console.log('Fetched users:', fetchedUsers);
       setUsers(fetchedUsers);
-      
+      console.log(users);
+
       // Extract managers for the dropdown
-      const managersList = fetchedUsers.filter(user => user.role === 'manager');
+      const managersList = fetchedUsers.filter(
+        (user) => user.role === "manager"
+      );
       setManagers(managersList);
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'Failed to fetch users. Please try again later.',
-        variant: 'destructive'
+        title: "Error",
+        description: "Failed to fetch users. Please try again later.",
+        variant: "destructive",
       });
-      console.error('Error fetching users:', error);
+      console.error("Error fetching users:", error);
     } finally {
       setIsLoading(false);
     }
   };
-  
+  const fetchManagers = async () => {
+    try {
+      setIsLoading(true);
+      const fetchedUsers = await userService.getUsers();
+      console.log("Fetched users:", fetchedUsers);
+      setUsers(fetchedUsers);
+
+      // Extract managers for the dropdown
+      const superManagerList = fetchedUsers.filter(
+        (user) => user.role === "super-manager"
+      );
+      setSuperManagers(superManagerList);
+      console.log("Super----------", superManagerList);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch users. Please try again later.",
+        variant: "destructive",
+      });
+      console.error("Error fetching users:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleRoleChange = async (userId: string, role: UserRole) => {
-    // Get the user we're updating
-    const user = users.find(u => u.id === userId);
+    const user = users.find((u) => u.id === userId);
     if (!user) return;
-    
-    console.log(`Changing role for user ${userId} from ${user.role} to ${role}`);
-    
-    // Logic for role changes
-    if (role === 'admin' || role === 'manager') {
-      // Admin and Manager roles don't need a manager
-      processRoleChange(userId, role);
-    } else if ((role === 'team-lead' || role === 'employee') && 
-              (user.role === 'admin' || user.role === 'manager')) {
-      // If changing from admin/manager to team-lead/employee, need to assign a manager
+
+    if (role === "team-lead" || role === "employee" || role === "manager") {
+      // Show manager assignment dialog when changing to these roles
       setSelectedUser(user);
       setPendingRole(role);
+      setSelectedManagerId(user.managerId || ""); // prefill with existing manager if any
       setShowManagerDialog(true);
+    } else if (role === "admin") {
+      // Admin role: clear manager and update directly
+      processRoleChange(userId, role, null);
     } else {
-      // Keep existing manager for lateral role changes (team-lead to employee or vice versa)
+      // For any other role changes, just update directly
       processRoleChange(userId, role);
     }
   };
-  
-  const processRoleChange = async (userId: string, role: UserRole, managerId?: string) => {
+
+  const processRoleChange = async (
+    userId: string,
+    role: UserRole,
+    managerId?: string
+  ) => {
     setUpdatingUserId(userId);
-    
+
     try {
       console.log(`Processing role change for user ${userId} to ${role}`);
-      
+
       // Update the user's role in the database
       await userService.updateUserRole(userId, role);
-      
+
       // Update the manager if provided
-      if (managerId && (role === 'team-lead' || role === 'employee')) {
+      if (managerId && (role === "team-lead" || role === "employee")) {
         await userService.updateUserManager(userId, managerId);
-      } else if (role === 'admin' || role === 'manager') {
+      } else if (role === "admin" || role === "manager") {
         // Clear manager for admin and manager roles
         await userService.updateUserManager(userId, null);
       }
-      
+
       // Reset state
       setSelectedUser(null);
       setPendingRole(null);
-      setSelectedManagerId('');
+      setSelectedManagerId("");
       setShowManagerDialog(false);
-      
+
       toast({
-        title: 'Role updated',
+        title: "Role updated",
         description: `User role has been updated successfully`,
       });
-      
+
       // Refresh users list
       fetchUsers();
+      fetchManagers();
     } catch (error: any) {
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to update user role.',
-        variant: 'destructive'
+        title: "Error",
+        description: error.message || "Failed to update user role.",
+        variant: "destructive",
       });
-      console.error('Error updating role:', error);
+      console.error("Error updating role:", error);
     } finally {
       setUpdatingUserId(null);
     }
@@ -143,22 +194,22 @@ export function UserRoleManagement() {
 
   const getRoleBadgeColor = (role: UserRole) => {
     switch (role) {
-      case 'admin':
-        return 'bg-red-500 hover:bg-red-600';
-      case 'manager':
-        return 'bg-blue-500 hover:bg-blue-600';
-      case 'team-lead':
-        return 'bg-green-500 hover:bg-green-600';
-      case 'employee':
-        return 'bg-gray-500 hover:bg-gray-600';
+      case "admin":
+        return "bg-red-500 hover:bg-red-600";
+      case "manager":
+        return "bg-blue-500 hover:bg-blue-600";
+      case "team-lead":
+        return "bg-green-500 hover:bg-green-600";
+      case "employee":
+        return "bg-gray-500 hover:bg-gray-600";
       default:
-        return '';
+        return "";
     }
   };
-  
+
   // Check if current user is admin
-  const isAdmin = currentUserProfile?.role === 'admin';
-  
+  const isAdmin = currentUserProfile?.role === "admin";
+
   if (!isAdmin) {
     return (
       <Card>
@@ -174,7 +225,7 @@ export function UserRoleManagement() {
       </Card>
     );
   }
-  
+
   return (
     <>
       <Card>
@@ -204,31 +255,35 @@ export function UserRoleManagement() {
               <TableBody>
                 {users.length > 0 ? (
                   users.map((user) => {
-                    const managerName = user.managerId 
-                      ? users.find(u => u.id === user.managerId)?.name || 'Unknown'
-                      : 'None';
-                      
+                    const managerName = user.managerId
+                      ? users.find((u) => u.id === user.managerId)?.name ||
+                        "Unknown"
+                      : "None";
+
                     return (
                       <TableRow key={user.id}>
                         <TableCell>{user.name}</TableCell>
                         <TableCell>{user.email}</TableCell>
                         <TableCell>
                           <Badge className={`${getRoleBadgeColor(user.role)}`}>
-                            {user.role.charAt(0).toUpperCase() + user.role.slice(1).replace('-', ' ')}
+                            {user.role.charAt(0).toUpperCase() +
+                              user.role.slice(1).replace("-", " ")}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {user.role === 'admin' || user.role === 'manager' ? 
-                            'N/A' : 
-                            managerName
-                          }
+                          {user.role === "admin" ? "N/A" : managerName}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex flex-col sm:flex-row items-end sm:items-center justify-end gap-2">
-                            <Select 
-                              value={user.role} 
-                              onValueChange={(value) => handleRoleChange(user.id, value as UserRole)}
-                              disabled={updatingUserId === user.id || user.id === currentUserProfile?.id}
+                            <Select
+                              value={user.role}
+                              onValueChange={(value) =>
+                                handleRoleChange(user.id, value as UserRole)
+                              }
+                              disabled={
+                                updatingUserId === user.id ||
+                                user.id === currentUserProfile?.id
+                              }
                             >
                               <SelectTrigger className="w-40">
                                 <SelectValue placeholder="Select role" />
@@ -236,23 +291,48 @@ export function UserRoleManagement() {
                               <SelectContent>
                                 <SelectItem value="admin">Admin</SelectItem>
                                 <SelectItem value="manager">Manager</SelectItem>
-                                <SelectItem value="team-lead">Team Lead</SelectItem>
-                                <SelectItem value="employee">Employee</SelectItem>
+                                <SelectItem value="team-lead">
+                                  Team Lead
+                                </SelectItem>
+                                <SelectItem value="employee">
+                                  Employee
+                                </SelectItem>
+                                <SelectItem value="super-manager">
+                                  Super Manager
+                                </SelectItem>
                               </SelectContent>
                             </Select>
-                            
+
                             {/* Add the Change Manager component */}
-                            {(user.role === 'team-lead' || user.role === 'employee') && 
-                             user.id !== currentUserProfile?.id && (
-                              <ChangeManagerDialog 
-                                user={user} 
-                                onManagerChanged={fetchUsers} 
-                              />
-                            )}
+                            {(() => {
+                              if (
+                                (user.role === "team-lead" ||
+                                  user.role === "employee") &&
+                                user.id !== currentUserProfile?.id
+                              ) {
+                                return (
+                                  <ChangeManagerDialog
+                                    user={user}
+                                    onManagerChanged={fetchUsers}
+                                  />
+                                );
+                              } else if (
+                                user.role === "manager" &&
+                                user.id !== currentUserProfile?.id
+                              ) {
+                                return (
+                                  <ChangeManagerDialog
+                                    user={user}
+                                    onManagerChanged={fetchManagers}
+                                  />
+                                );
+                              }
+                              return null;
+                            })()}
                           </div>
                           {user.id === currentUserProfile?.id && (
                             <div className="text-xs text-muted-foreground mt-1">
-                              Cannot change your own role
+                              Cannot change your own manager
                             </div>
                           )}
                         </TableCell>
@@ -271,20 +351,19 @@ export function UserRoleManagement() {
           )}
         </CardContent>
       </Card>
-      
+
       {/* Manager Selection Dialog */}
       <Dialog open={showManagerDialog} onOpenChange={setShowManagerDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Assign Manager</DialogTitle>
             <DialogDescription>
-              {pendingRole === 'team-lead' ? 
-                'A Team Lead needs to be assigned to a Manager.' :
-                'An Employee needs to be assigned to a Manager.'
-              }
+              {pendingRole === "team-lead"
+                ? "A Team Lead needs to be assigned to a Manager."
+                : "An Employee needs to be assigned to a Manager."}
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="py-6">
             <label className="block text-sm font-medium mb-2">
               Select a Manager for {selectedUser?.name}
@@ -297,10 +376,29 @@ export function UserRoleManagement() {
                 <SelectValue placeholder="Select a manager" />
               </SelectTrigger>
               <SelectContent>
-                {managers.length === 0 ? (
-                  <SelectItem value="no-managers-available" disabled>No available managers</SelectItem>
+                {/* For managers, show super-managers + option for no manager */}
+                {role === "manager" ? (
+                  <>
+                    <SelectItem value="">No manager</SelectItem>
+                    {superManagers.length === 0 ? (
+                      <SelectItem value="no-super-managers" disabled>
+                        No available super managers
+                      </SelectItem>
+                    ) : (
+                      superManagers.map((sm) => (
+                        <SelectItem key={sm.id} value={sm.id}>
+                          {sm.name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </>
+                ) : // For team-lead and employee, must select a manager
+                managers.length === 0 ? (
+                  <SelectItem value="no-managers-available" disabled>
+                    No available managers
+                  </SelectItem>
                 ) : (
-                  managers.map(manager => (
+                  managers.map((manager) => (
                     <SelectItem key={manager.id} value={manager.id}>
                       {manager.name}
                     </SelectItem>
@@ -309,22 +407,36 @@ export function UserRoleManagement() {
               </SelectContent>
             </Select>
           </div>
-          
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => {
-              setShowManagerDialog(false);
-              setSelectedUser(null);
-              setPendingRole(null);
-            }}>
-              Cancel
-            </Button>
-            <Button 
+            <Button
               onClick={() => {
-                if (selectedUser && pendingRole && selectedManagerId) {
-                  processRoleChange(selectedUser.id, pendingRole, selectedManagerId);
+                if (selectedUser && pendingRole) {
+                  // For team-lead/employee, ensure manager is selected
+                  if (
+                    (pendingRole === "team-lead" ||
+                      pendingRole === "employee") &&
+                    !selectedManagerId
+                  ) {
+                    toast({
+                      title: "Validation error",
+                      description: "Please select a manager.",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  // For manager, allow no manager assigned
+                  processRoleChange(
+                    selectedUser.id,
+                    pendingRole,
+                    selectedManagerId || null
+                  );
                 }
               }}
-              disabled={!selectedManagerId || managers.length === 0}
+              disabled={
+                (pendingRole === "team-lead" || pendingRole === "employee") &&
+                !selectedManagerId
+              }
             >
               Confirm
             </Button>
