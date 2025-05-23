@@ -51,7 +51,7 @@ export function Header() {
         {/* Left Side */}
         <div className="flex items-center gap-6">
           <Link to="/" className="font-bold text-4xl">
-            <img src="public\assets\bg.png" className='h-14'/>
+            <img src="public\assets\bg.png" className='h-12 p-2'/>
           </Link>
 
           {isAuthenticated && profile && (

@@ -21,7 +21,7 @@ export default function AdminSettings() {
       <Header />
       <div className="flex-1">
         <div className="container py-6 space-y-6">
-          <h1 className="text-3xl font-bold">Admin Settings</h1>
+          <h1 className="text-2xl font-bold">Admin Settings</h1>
           
           <Tabs defaultValue="users">
             <TabsList className="grid w-full md:w-[500px] grid-cols-3 bg-[#7dc6e8]  text-white">

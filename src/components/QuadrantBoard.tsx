@@ -66,7 +66,7 @@ function QuadrantColumn({ quadrant, tasks }: QuadrantProps) {
   return (
    <div className="flex flex-col h-full bg-[#7dc6e8] p-2 rounded-lg border shadow-sm">
 
-      <h2 className="font-medium mb-2 flex items-center text-sm text-white">
+      <h2 className="font-medium mb-2 flex items-center text-m text-white">
         <span className="mr-1">{quadrantIcons[quadrant]}</span>
         {quadrantLabels[quadrant]}
       </h2>

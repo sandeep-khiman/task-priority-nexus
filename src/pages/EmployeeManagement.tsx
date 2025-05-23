@@ -156,7 +156,7 @@ const EmployeeManagement = () => {
         <div className="container py-6 space-y-6">
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h1 className="text-3xl font-bold">Employee Management</h1>
+              <h1 className="text-2xl font-bold">Employee Management</h1>
             </div>
 
             <Tabs defaultValue="employees" className="w-full">

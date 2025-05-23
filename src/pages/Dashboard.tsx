@@ -50,9 +50,9 @@ export default function Dashboard() {
         <div className="container py-6 space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold flex items-center">
+              <h1 className="text-2xl font-bold flex items-center">
                 <ClipboardList className="mr-3 h-7 w-7" /> 
-                Task Dashboard
+                Dashboard
               </h1>
               <p className="text-muted-foreground mt-1">
                 Organize your tasks using the Eisenhower Priority Matrix
