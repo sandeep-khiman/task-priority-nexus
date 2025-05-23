@@ -46,12 +46,12 @@ export function Header() {
       };
 
   return (
-    <header className="border-b bg-[#7c7da4] ">
+    <header className="border-b bg-[#7dc6e8] ">
       <div className="container flex h-16 items-center justify-between">
         {/* Left Side */}
         <div className="flex items-center gap-6">
           <Link to="/" className="font-bold text-4xl">
-            TaskFlow
+            <img src="public\assets\bg.png" className='h-14'/>
           </Link>
 
           {isAuthenticated && profile && (
@@ -60,7 +60,7 @@ export function Header() {
                 to="/dashboard"
                 className={cn(
                   'px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2',
-                  useIsActive('/dashboard',true) ? 'bg-[#464786] text-white'
+                  useIsActive('/dashboard',true) ? 'bg-[#4099c3] text-white'
                     : 'text-white hover:text-primary'
                 )}
               >
@@ -72,7 +72,7 @@ export function Header() {
                   to={profile.role === 'manager' ? '/manager' : '/teams'}
                   className={cn(
                     'px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2',
-                    useIsActive(profile.role === 'manager' ? '/manager' : '/teams',true)? 'bg-[#464786] text-white'
+                    useIsActive(profile.role === 'manager' ? '/manager' : '/teams',true)? 'bg-[#4099c3] text-white'
                     : 'text-white hover:text-primary'
                   )}
                 >
@@ -86,7 +86,7 @@ export function Header() {
                   className={cn(
                     'px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2',
                     useIsActive('/admin', true)
-                    ? 'bg-[#464786] text-white'
+                    ? 'bg-[#4099c3] text-white'
                     : 'text-white hover:text-primary'
                   )}
                 >
@@ -100,7 +100,7 @@ export function Header() {
                 className={cn(
                   'px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2',
                   useIsActive('/reportDashboard', true)
-                    ? 'bg-[#464786] text-white'
+                    ? 'bg-[#4099c3] text-white'
                     : 'text-white hover:text-primary'
                 )}
               >
@@ -112,7 +112,7 @@ export function Header() {
                 className={cn(
                   'px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2',
                   useIsActive('/employee-management', true)
-                    ? 'bg-[#464786] text-white'
+                    ? 'bg-[#4099c3] text-white'
                     : 'text-white hover:text-primary'
                 )}
               >
@@ -131,7 +131,7 @@ export function Header() {
                   {profile.avatar_url ? (
                     <AvatarImage src={profile.avatar_url} alt={profile.name} />
                   ) : (
-                    <AvatarFallback className="text-xs bg-[#464786] text-primary-foreground">
+                    <AvatarFallback className="text-xs bg-[#4099c3] text-primary-foreground">
                       {getUserInitials(profile.name)}
                     </AvatarFallback>
                   )}

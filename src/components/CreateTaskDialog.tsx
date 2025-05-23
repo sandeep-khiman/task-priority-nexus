@@ -88,7 +88,7 @@ export function CreateTaskDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="gap-1 bg-[#464786]">
+        <Button className="gap-1 bg-[#4099c3]">
           <Plus className="h-4 w-4" /> New Task
         </Button>
       </DialogTrigger>

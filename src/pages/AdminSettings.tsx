@@ -24,7 +24,7 @@ export default function AdminSettings() {
           <h1 className="text-3xl font-bold">Admin Settings</h1>
           
           <Tabs defaultValue="users">
-            <TabsList className="grid w-full md:w-[500px] grid-cols-3 bg-[#7c7da4]  text-white">
+            <TabsList className="grid w-full md:w-[500px] grid-cols-3 bg-[#7dc6e8]  text-white">
               <TabsTrigger value="users">User Management</TabsTrigger>
               <TabsTrigger value="teams">Team Management</TabsTrigger>
               <TabsTrigger value="system">System Settings</TabsTrigger>
