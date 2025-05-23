@@ -27,7 +27,8 @@ export function TaskFilter() {
   };
 
   return (
-    <div className="bg-[#7C8EA4] p-4 rounded-lg shadow-sm border">
+    <div className="bg-[#7c7da4] p-4 rounded-lg shadow-sm border">
+
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         <div className="flex-1">
   {profile.role === 'employee' ? (

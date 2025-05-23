@@ -155,6 +155,33 @@ useEffect(() => {
     }
   };
 
+  const fetchMyTasks = async () => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    try {
+      const fetchedTasks = await taskService.getTasks();
+      
+      // Update tasks with appropriate quadrants based on due dates
+      const updatedTasks = fetchedTasks.map(task => ({
+        ...task,
+        quadrant: task.quadrant ?? determineTaskQuadrant(task, settings)
+      }));
+      
+      setTasks(updatedTasks);
+      setError(null);
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch tasks');
+      toast({
+        title: 'Error',
+        description: 'Failed to load tasks',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Fetch users based on the current user's role
   const fetchUsers = async () => {
     if (!user || !profile) return;

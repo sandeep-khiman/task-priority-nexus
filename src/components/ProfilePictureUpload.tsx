@@ -104,7 +104,7 @@ export function ProfilePictureUpload({ user, onUploadSuccess }: ProfilePictureUp
         {user.avatar_url ? (
           <AvatarImage src={user.avatar_url} alt={user.name} />
         ) : (
-          <AvatarFallback className="text-lg bg-primary text-primary-foreground">
+          <AvatarFallback className="text-lg bg-[#464786] text-primary-foreground">
             {getUserInitials(user.name)}
           </AvatarFallback>
         )}

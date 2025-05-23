@@ -44,7 +44,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-[#F8F9FA]">
       <Header />
       <div className="flex-1">
         <div className="container py-6 space-y-6">

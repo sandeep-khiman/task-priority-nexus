@@ -42,19 +42,19 @@ export default function Landing() {
               <h2 className="text-2xl font-bold mb-4">Features</h2>
               <ul className="space-y-3">
                 <li className="flex items-center">
-                  <span className="bg-primary/10 text-primary p-1 rounded-full mr-2">✓</span>
+                  <span className="bg-[#464786]/10 text-primary p-1 rounded-full mr-2">✓</span>
                   Team hierarchy management
                 </li>
                 <li className="flex items-center">
-                  <span className="bg-primary/10 text-primary p-1 rounded-full mr-2">✓</span>
+                  <span className="bg-[#464786]/10 text-primary p-1 rounded-full mr-2">✓</span>
                   Task delegation and tracking
                 </li>
                 <li className="flex items-center">
-                  <span className="bg-primary/10 text-primary p-1 rounded-full mr-2">✓</span>
+                  <span className="bg-[#464786]/10 text-primary p-1 rounded-full mr-2">✓</span>
                   Role-based permissions
                 </li>
                 <li className="flex items-center">
-                  <span className="bg-primary/10 text-primary p-1 rounded-full mr-2">✓</span>
+                  <span className="bg-[#464786]/10 text-primary p-1 rounded-full mr-2">✓</span>
                   Multi-team membership
                 </li>
               </ul>

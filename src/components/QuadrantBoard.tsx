@@ -64,7 +64,8 @@ function QuadrantColumn({ quadrant, tasks }: QuadrantProps) {
   const hasMoreTasks = tasks.length > 5;
 
   return (
-    <div className="flex flex-col h-full bg-[#7C8EA4] p-2 rounded-lg border shadow-sm">
+   <div className="flex flex-col h-full bg-[#7c7da4] p-2 rounded-lg border shadow-sm">
+
       <h2 className="font-medium mb-2 flex items-center text-sm text-white">
         <span className="mr-1">{quadrantIcons[quadrant]}</span>
         {quadrantLabels[quadrant]}

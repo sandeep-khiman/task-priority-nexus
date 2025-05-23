@@ -160,7 +160,7 @@ const EmployeeManagement = () => {
             </div>
 
             <Tabs defaultValue="employees" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 bg-[#7C8EA4]  text-white">
+              <TabsList className="grid w-full grid-cols-2 bg-[#7c7da4]  text-white">
                 <TabsTrigger value="employees">Employee List</TabsTrigger>
                 <TabsTrigger value="today">Today's Reports</TabsTrigger>
               </TabsList>

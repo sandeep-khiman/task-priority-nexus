@@ -103,7 +103,7 @@
 }
 
 .quadrant {
-  @apply bg-background p-4 rounded-lg border border-border min-h-[400px] transition-all;
+  @apply bg-[#eff6ff]  p-4 rounded-lg border border-border min-h-[400px] transition-all;
 }
 
 .quadrant-drop-active {
