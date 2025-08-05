@@ -37,7 +37,17 @@ interface TaskContextType {
   fetchLatestProgressChange :(taskId :string) => Promise<TaskProgressUpdate | null>;
   fetchProgressChanges :(taskId :string) => Promise<TaskProgressUpdate[]>;
 }
-
+const defaultSettings: SystemSettings = {
+  taskDueDateThresholds: {
+    critical: 2,
+    medium: 4,
+    low: 6
+  },
+  tasksPerPage: 10,
+  defaultSortOrder: 'duedate-asc',
+  markOverdueDays: 3,
+  warningDays: 2
+};
 const initialFilterState: TaskFilterState = {
   showCompleted: false,
   searchQuery: '',
@@ -268,6 +278,7 @@ useEffect(() => {
 
  // Update an existing task
 const updateTask = async (taskData: any) => {
+
   setIsLoading(true);
   
   // Declare existingTask outside the try block so it's available in catch
@@ -278,17 +289,29 @@ const updateTask = async (taskData: any) => {
   }
 
   try {
-    // Optimistic update
-    const updatedTask = {
-      ...existingTask,
-      ...taskData,
-      quadrant: taskData.dueDate
-        ? determineTaskQuadrant({ ...existingTask, ...taskData }, settings)
-        : existingTask.quadrant
-    };
+    console.log("taskData-------------",taskData,"existingTask--------------------",existingTask);
     
-    setTasks(prev => prev.map(t => t.id === taskData.id ? updatedTask : t));
+    // Optimistic update
+    try {
+  const updatedTask = {
+    ...existingTask,
+    ...taskData,
+    quadrant: taskData.dueDate
+  ? determineTaskQuadrant({ ...existingTask, ...taskData }, settings ?? defaultSettings)
+  : existingTask.quadrant
 
+  };
+
+  console.log("Step 2 - Updated Task: ", updatedTask);
+  setTasks(prev => prev.map(t => t.id === taskData.id ? updatedTask : t));
+  console.log("Enter Step 3-------294---------------", tasks);
+} catch (err) {
+  console.error("Error during optimistic update:", err);
+  setIsLoading(false);
+  return;
+}
+
+    
     // Actual update
     const dueDateChanged = existingTask.dueDate !== taskData.dueDate;
     
@@ -517,7 +540,7 @@ const fetchLatestProgressChange = async (taskId: string): Promise<TaskProgressUp
   // Apply filters to tasks
   const filteredTasks = tasks.filter(task => {
     // Filter by completion status
-    if (hideCompleted && task.completed) {
+    if (hideCompleted && (task.completed||task.progress===100)) {
       return false;
     }
 

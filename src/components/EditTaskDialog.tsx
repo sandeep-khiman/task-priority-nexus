@@ -86,8 +86,8 @@ const formSchema = z
   .refine(
     (data) =>
       !data.dueDate ||
-      !data.lastDueDate ||
-      data.dueDate.getTime() === data.lastDueDate.getTime()
+        !data.lastDueDate ||
+        data.dueDate.getTime() === data.lastDueDate.getTime()
         ? true
         : !!data.dueDateReason?.trim(),
     {
@@ -201,7 +201,7 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
         values.progress && task.progress && values.progress !== task.progress;
 
       console.log("Progress-----------------------", hasProgressChanged);
-      await updateTask({
+      var data = await updateTask({
         ...task,
         title: values.title,
         notes: values.notes || "",
@@ -224,6 +224,7 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
         description: "Task updated successfully",
       });
       setOpen(false);
+
     } catch (error) {
       console.error("Error updating task:", error);
       toast({
@@ -412,7 +413,7 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
                       (originalDueDate &&
                         selectedDate &&
                         originalDueDate.toISOString().split("T")[0] !==
-                          selectedDate.toISOString().split("T")[0]) ||
+                        selectedDate.toISOString().split("T")[0]) ||
                       (originalDueDate === null && selectedDate !== null) ||
                       (originalDueDate !== null && selectedDate === null);
 
@@ -461,24 +462,21 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
                       <Dialog open={showModal} onOpenChange={setShowModal}>
                         <DialogContent>
                           <DialogHeader>
-                            <DialogTitle>
-                              Reason for Changing Due Date
-                            </DialogTitle>
+                            <DialogTitle>Reason for Changing Due Date</DialogTitle>
                           </DialogHeader>
 
                           <FormItem>
-                            <FormLabel>
-                              Please provide a reason for changing the due date
-                            </FormLabel>
+                            <FormLabel>Please provide a reason for changing the due date</FormLabel>
                             <FormControl>
                               <Textarea
-                                placeholder="Enter reason..."
+                                placeholder="Enter reason (max 50 words)..."
                                 value={dueDateChangeReason}
-                                onChange={(e) =>
-                                  setDueDateChangeReason(e.target.value)
-                                }
+                                onChange={(e) => setDueDateChangeReason(e.target.value)}
                               />
                             </FormControl>
+                            <div className="text-sm text-muted-foreground mt-1">
+                              {dueDateChangeReason.trim().split(/\s+/).filter(Boolean).length} / 50 words
+                            </div>
                           </FormItem>
 
                           <div className="flex justify-end gap-2 mt-4">
@@ -486,7 +484,6 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
                               type="button"
                               variant="outline"
                               onClick={() => {
-                                // Reset due date to original
                                 form.setValue(
                                   "dueDate",
                                   task.dueDate ? new Date(task.dueDate) : null
@@ -500,20 +497,20 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
                             <Button
                               type="button"
                               onClick={() => {
-                                // Just close the modal, keeping the new date
-                                form.setValue(
-                                  "dueDateReason",
-                                  dueDateChangeReason
-                                );
+                                form.setValue("dueDateReason", dueDateChangeReason);
                                 setShowModal(false);
                               }}
-                              disabled={!dueDateChangeReason.trim()}
+                              disabled={
+                                !dueDateChangeReason.trim() ||
+                                dueDateChangeReason.trim().split(/\s+/).filter(Boolean).length > 50
+                              }
                             >
                               Confirm
                             </Button>
                           </div>
                         </DialogContent>
                       </Dialog>
+
                     </>
                   );
                 }}
@@ -541,17 +538,17 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
                                 <div>
                                   {lastDueDateChange
                                     ? format(
-                                        new Date(
-                                          lastDueDateChange.last_due_date
-                                        ),
-                                        "MMM d, yyyy"
-                                      )
+                                      new Date(
+                                        lastDueDateChange.last_due_date
+                                      ),
+                                      "MMM d, yyyy"
+                                    )
                                     : task.dueDate
-                                    ? format(
+                                      ? format(
                                         new Date(task.dueDate),
                                         "MMM d, yyyy"
                                       )
-                                    : "No previous date"}
+                                      : "No previous date"}
                                 </div>
                                 <LucideFileText className="h-4 w-4 opacity-50" />
                               </Button>
@@ -608,39 +605,31 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
                                 <p className="text-muted-foreground">
                                   No due date history available.
                                 </p>
-                              ) : (
-                                <div className="space-y-4">
-                                  {dueDateHistory.map((entry) => (
-                                    <div
-                                      key={entry.id}
-                                      className="border rounded-lg p-4 shadow-sm"
-                                    >
-                                      <div className="text-sm text-muted-foreground mb-2">
-                                        <strong>Changed on:</strong>{" "}
-                                        {new Date(
-                                          entry.created_at
-                                        ).toLocaleString()}
-                                      </div>
-                                      <div className="text-sm">
-                                        <strong>Last Due Date:</strong>{" "}
-                                        {new Date(
-                                          entry.last_due_date
-                                        ).toLocaleDateString()}
-                                      </div>
-                                      <div className="text-sm">
-                                        <strong>Updated Due Date:</strong>{" "}
-                                        {new Date(
-                                          entry.updated_due_date
-                                        ).toLocaleDateString()}
-                                      </div>
-                                      <div className="text-sm">
-                                        <strong>Reason:</strong>{" "}
-                                        {entry.reason_to_change}
-                                      </div>
+                              ) : (<div className="max-h-[90vh] overflow-y-auto space-y-4">
+                                {dueDateHistory.map((entry) => (
+                                  <div
+                                    key={entry.id}
+                                    className="border rounded-lg p-4 shadow-sm"
+                                  >
+                                    <div className="text-sm text-muted-foreground mb-2">
+                                      <strong>Changed on:</strong>{" "}
+                                      {new Date(entry.created_at).toLocaleString()}
                                     </div>
-                                  ))}
-                                </div>
-                              )}
+                                    <div className="text-sm">
+                                      <strong>Last Due Date:</strong>{" "}
+                                      {new Date(entry.last_due_date).toLocaleDateString()}
+                                    </div>
+                                    <div className="text-sm">
+                                      <strong>Updated Due Date:</strong>{" "}
+                                      {new Date(entry.updated_due_date).toLocaleDateString()}
+                                    </div>
+                                    <div className="text-sm">
+                                      <strong>Reason:</strong> {entry.reason_to_change}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>)
+                              }
                             </div>
                           </SheetContent>
                         </Sheet>
@@ -696,33 +685,30 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
                       </FormItem>
 
                       {/* Progress Update Modal */}
-                      <Dialog
-                        open={showProgressModal}
-                        onOpenChange={setShowProgressModal}
-                      >
+                      <Dialog open={showProgressModal} onOpenChange={setShowProgressModal}>
                         <DialogContent>
                           <DialogHeader>
                             <DialogTitle>Progress Update</DialogTitle>
                           </DialogHeader>
                           <div className="space-y-4">
                             <Textarea
-                              placeholder="What's been completed since last update?"
+                              placeholder="What's been completed since last update? (Max 50 words)"
                               value={progressChangeUpdate}
-                              onChange={(e) =>
-                                setProgressChangeUpdate(e.target.value)
-                              }
+                              onChange={(e) => setProgressChangeUpdate(e.target.value)}
                               className="min-h-[120px]"
                             />
+                            <div className="text-sm text-muted-foreground">
+                              {
+                                progressChangeUpdate.trim().split(/\s+/).filter(Boolean).length
+                              } / 50 words
+                            </div>
+
                             <div className="flex justify-end gap-2">
                               <Button
                                 type="button"
                                 variant="outline"
                                 onClick={() => {
-                                  // Reset due date to original
-                                  form.setValue(
-                                    "progress",
-                                    task.progress ? task.progress : null
-                                  );
+                                  form.setValue("progress", task.progress ?? null);
                                   setShowProgressModal(false);
                                   setProgressChanged(false);
                                 }}
@@ -732,15 +718,14 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
                               <Button
                                 type="button"
                                 onClick={() => {
-                                  // Just close the modal, keeping the new date
-                                  form.setValue(
-                                    "progressUpdateNote",
-                                    progressChangeUpdate
-                                  );
+                                  form.setValue("progressUpdateNote", progressChangeUpdate);
                                   setShowProgressModal(false);
                                   setProgressChanged(true);
                                 }}
-                                disabled={!progressChangeUpdate.trim()}
+                                disabled={
+                                  !progressChangeUpdate.trim() ||
+                                  progressChangeUpdate.trim().split(/\s+/).filter(Boolean).length > 50
+                                }
                               >
                                 Confirm
                               </Button>
@@ -748,6 +733,7 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
                           </div>
                         </DialogContent>
                       </Dialog>
+
                     </>
                   );
                 }}
@@ -828,26 +814,22 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
                       </p>
                     ) : (
                       <div className="mt-6">
-                        <h2 className="text-xl font-bold mb-4">
-                          Progress Update History
-                        </h2>
-                        <div className="space-y-4">
+                        <h2 className="text-xl font-bold mb-4">Progress Update History</h2>
+                        <div className="max-h-[90vh] overflow-y-auto space-y-4 p-2">
                           {progressHistory.map((entry) => (
                             <div
                               key={entry.id}
-                              className="border rounded-lg p-4 shadow-sm"
+                              className="border rounded-lg p-4 shadow-sm bg-white"
                             >
                               <div className="text-sm text-muted-foreground mb-2">
                                 <strong>Updated on:</strong>{" "}
                                 {new Date(entry.created_at).toLocaleString()}
                               </div>
                               <div className="text-sm">
-                                <strong>Previous Progress:</strong>{" "}
-                                {entry.previous_progress}%
+                                <strong>Previous Progress:</strong> {entry.previous_progress}%
                               </div>
                               <div className="text-sm">
-                                <strong>Current Progress:</strong>{" "}
-                                {entry.current_progress}%
+                                <strong>Current Progress:</strong> {entry.current_progress}%
                               </div>
                               <div className="text-sm">
                                 <strong>Work Done:</strong> {entry.updates}
@@ -856,6 +838,7 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
                           ))}
                         </div>
                       </div>
+
                     )}
                   </div>
                 </SheetContent>

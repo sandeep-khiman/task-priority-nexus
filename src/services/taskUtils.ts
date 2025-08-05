@@ -20,39 +20,27 @@ const defaultSettings: SystemSettings = {
  */
 export const determineTaskQuadrant = (
   task: Task, 
-  settings: SystemSettings = defaultSettings
+  settings: SystemSettings | null = defaultSettings
 ): Quadrant => {
-  // If task has no due date, default to Quadrant 4 (less urgent, less important)
-  if (!task.dueDate) {
-    return 4;
-  }
+  if (!task.dueDate) return 4;
 
   const dueDate = new Date(task.dueDate);
+  if (isNaN(dueDate.getTime())) return 4;
+
   const today = new Date();
   const daysUntilDue = differenceInDays(dueDate, today);
-  
-  // If task is already completed, keep its current quadrant
-  if (task.completed) {
-    return task.quadrant;
-  }
-  
-  // Past due tasks are critical (Quadrant 1)
-  if (daysUntilDue < 0) {
-    return 1;
-  }
-  
-  // Use settings to determine priority based on days until due
-  const { critical, medium ,low} = settings.taskDueDateThresholds;
-  
-  if (daysUntilDue <= critical) {
-    return 1; // Critical - Quadrant 1 (Urgent & Important)
-  } else if (daysUntilDue <= medium) {
-    return 2; // Medium - Quadrant 2 (Important, Not Urgent)
-  } else if(daysUntilDue<=low){
-    return 3;
-  } else {
-    return 4;
-  }
+
+  if (task.completed) return task.quadrant;
+
+  if (daysUntilDue < 0) return 1;
+
+  const thresholds = settings?.taskDueDateThresholds ?? defaultSettings.taskDueDateThresholds;
+  const { critical, medium, low } = thresholds;
+
+  if (daysUntilDue <= critical) return 1;
+  if (daysUntilDue <= medium) return 2;
+  if (daysUntilDue <= low) return 3;
+  return 4;
 };
 
 /**

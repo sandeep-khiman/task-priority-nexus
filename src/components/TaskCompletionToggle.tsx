@@ -40,7 +40,7 @@ export function TaskCompletionToggle({ task }: TaskCompletionToggleProps) {
   return (
     <>
       <Checkbox 
-        checked={task.completed}
+        checked={task.completed||task.progress===100}
         onCheckedChange={handleToggle}
         className="data-[state=checked]:bg-green-500"
       />

@@ -1,6 +1,5 @@
-
 import { supabase } from '@/integrations/supabase/client';
-import { Task, Quadrant,DueDateChange } from '@/types/task';
+import { Task, Quadrant } from '@/types/task';
 
 interface CreateTaskPayload {
   title: string;
@@ -16,7 +15,6 @@ interface CreateTaskPayload {
   quadrant: Quadrant;
 }
 
-
 interface UpdateTaskPayload {
   id: string;
   title?: string;
@@ -29,74 +27,62 @@ interface UpdateTaskPayload {
   completed?: boolean;
   quadrant?: Quadrant;
   reasonToChangeDueDate?: string;
-  progressUpdateNote?:string;
-
+  progressUpdateNote?: string;
 }
 
 export const taskService = {
-  // Get all tasks for the current user based on their role and permissions
   async getTasks(): Promise<Task[]> {
-    const { data, error } = await supabase
+    const { data: tasksData, error: tasksError } = await supabase
       .from('tasks')
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching tasks:', error);
-      throw error;
+    if (tasksError) {
+      console.error('Error fetching tasks:', tasksError);
+      throw tasksError;
     }
 
-    // Get created by and assigned to profiles in separate queries
-    const tasks: Task[] = [];
-    for (const task of data || []) {
-      // Get creator profile
-      let createdByName = 'Unknown';
-      if (task.created_by_id) {
-        const { data: creatorData } = await supabase
-          .from('profiles')
-          .select('name')
-          .eq('id', task.created_by_id)
-          .single();
-        if (creatorData) {
-          createdByName = creatorData.name;
-        }
-      }
+    if (!tasksData) return [];
 
-      // Get assignee profile
-      let assignedToName = 'Unassigned';
-      if (task.assigned_to_id) {
-        const { data: assigneeData } = await supabase
-          .from('profiles')
-          .select('name')
-          .eq('id', task.assigned_to_id)
-          .single();
-        if (assigneeData) {
-          assignedToName = assigneeData.name;
-        }
-      }
+    const userIds = Array.from(
+      new Set(
+        tasksData.flatMap(task => [task.created_by_id, task.assigned_to_id])
+      )
+    ).filter(Boolean);
 
-      tasks.push({
-        id: task.id,
-        title: task.title,
-        notes: task.notes,
-        icon: task.icon || '📝',
-        progress: task.progress,
-        createdById: task.created_by_id,
-        createdByName,
-        assignedToId: task.assigned_to_id,
-        assignedToName,
-        dueDate: task.due_date,
-        completed: task.completed,
-        quadrant: task.quadrant as Quadrant,
-        createdAt: task.created_at,
-        updatedAt: task.updated_at
-      });
+    const { data: profilesData, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, name')
+      .in('id', userIds);
+
+    if (profilesError) {
+      console.error('Error fetching profiles:', profilesError);
+      throw profilesError;
     }
 
-    return tasks;
+    const profileMap = new Map<string, string>();
+    for (const profile of profilesData || []) {
+      profileMap.set(profile.id, profile.name);
+    }
+
+    return tasksData.map(task => ({
+      id: task.id,
+      title: task.title,
+      notes: task.notes,
+      icon: task.icon || '📝',
+      progress: task.progress,
+      createdById: task.created_by_id,
+      createdByName: profileMap.get(task.created_by_id) || 'Unknown',
+      assignedToId: task.assigned_to_id,
+      assignedToName: profileMap.get(task.assigned_to_id) || 'Unassigned',
+      dueDate: task.due_date,
+      completed: task.completed,
+      quadrant: task.quadrant as Quadrant,
+      createdAt: task.created_at,
+      updatedAt: task.updated_at,
+    }));
   },
 
-  // Get a task by ID
   async getTaskById(taskId: string): Promise<Task | null> {
     const { data: task, error } = await supabase
       .from('tasks')
@@ -104,37 +90,26 @@ export const taskService = {
       .eq('id', taskId)
       .single();
 
-    if (error) {
+    if (error || !task) {
       console.error('Error fetching task:', error);
       return null;
     }
 
-    if (!task) return null;
+    const userIds = [task.created_by_id, task.assigned_to_id].filter(Boolean);
 
-    // Get creator profile
-    let createdByName = 'Unknown';
-    if (task.created_by_id) {
-      const { data: creatorData } = await supabase
-        .from('profiles')
-        .select('name')
-        .eq('id', task.created_by_id)
-        .single();
-      if (creatorData) {
-        createdByName = creatorData.name;
-      }
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, name')
+      .in('id', userIds);
+
+    if (profilesError) {
+      console.error('Error fetching profiles:', profilesError);
+      throw profilesError;
     }
 
-    // Get assignee profile
-    let assignedToName = 'Unassigned';
-    if (task.assigned_to_id) {
-      const { data: assigneeData } = await supabase
-        .from('profiles')
-        .select('name')
-        .eq('id', task.assigned_to_id)
-        .single();
-      if (assigneeData) {
-        assignedToName = assigneeData.name;
-      }
+    const profileMap = new Map<string, string>();
+    for (const profile of profiles || []) {
+      profileMap.set(profile.id, profile.name);
     }
 
     return {
@@ -144,9 +119,9 @@ export const taskService = {
       icon: task.icon || '📝',
       progress: task.progress,
       createdById: task.created_by_id,
-      createdByName,
+      createdByName: profileMap.get(task.created_by_id) || 'Unknown',
       assignedToId: task.assigned_to_id,
-      assignedToName,
+      assignedToName: profileMap.get(task.assigned_to_id) || 'Unassigned',
       dueDate: task.due_date,
       completed: task.completed,
       quadrant: task.quadrant as Quadrant,
@@ -155,7 +130,6 @@ export const taskService = {
     };
   },
 
-  // Create a new task
   async createTask(task: CreateTaskPayload): Promise<Task> {
     const { data, error } = await supabase
       .from('tasks')
@@ -196,141 +170,116 @@ export const taskService = {
     };
   },
 
+  async updateTask(task: UpdateTaskPayload): Promise<Task | null> {
+    const updates: any = {};
+    if (task.title !== undefined) updates.title = task.title;
+    if (task.notes !== undefined) updates.notes = task.notes;
+    if (task.icon !== undefined) updates.icon = task.icon;
+    if (task.progress !== undefined) updates.progress = task.progress;
+    if (task.assignedToId !== undefined) updates.assigned_to_id = task.assignedToId;
+    if (task.completed !== undefined) updates.completed = task.completed;
+    if (task.quadrant !== undefined) updates.quadrant = task.quadrant;
+    updates.updated_at = new Date().toISOString();
 
-async updateTask(task: UpdateTaskPayload): Promise<Task | null> {
-  const updates: any = {};
-  if (task.title !== undefined) updates.title = task.title;
-  if (task.notes !== undefined) updates.notes = task.notes;
-  if (task.icon !== undefined) updates.icon = task.icon;
-  if (task.progress !== undefined) updates.progress = task.progress;
-  if (task.assignedToId !== undefined) updates.assigned_to_id = task.assignedToId;
-  if (task.completed !== undefined) updates.completed = task.completed;
-  if (task.quadrant !== undefined) updates.quadrant = task.quadrant;
-
-  updates.updated_at = new Date().toISOString();
-
-  // Get the current task to check for dueDate and progress changes
-  const { data: existingTask, error: fetchError } = await supabase
-    .from('tasks')
-    .select('due_date, progress')
-    .eq('id', task.id)
-    .single();
-
-  if (fetchError || !existingTask) {
-    console.error('Failed to fetch current task:', fetchError);
-    return null;
-  }
-
-  const oldDueDate = existingTask.due_date;
-  const oldProgress = existingTask.progress;
-  const newDueDate = task.dueDate;
-  const newProgress = task.progress;
-console.log(oldDueDate,"           ",newDueDate);
-
-  // Track due date change
-  if (newDueDate !== undefined && new Date(newDueDate).getTime() !== new Date(oldDueDate).getTime())  {
-    console.log("entered");
-    
-    updates.due_date = newDueDate;
-
-    const dueChange = {
-      task_id: task.id,
-      last_due_date: oldDueDate,
-      updated_due_date: newDueDate,
-      reason_to_change: task.reasonToChangeDueDate || 'Updated via system',
-      created_at: new Date().toISOString(),
-    };
-
-    const { error: dueDateError } = await supabase
-      .from('due_date_change')
-      .insert([dueChange]);
-
-    if (dueDateError) {
-      console.error('Failed to log due date change:', dueDateError);
-    }
-  }
-console.log("task: ",task);
-
-  // Track progress change
-  if (newProgress!== undefined && newProgress !== oldProgress) {
-    const progressUpdate = {
-      task_id: task.id,
-      previous_progress: oldProgress,
-      current_progress: newProgress,
-      updates: task.progressUpdateNote||'update via system',
-      created_at: new Date().toISOString(),
-    };
-console.log("progressUpdate: ",progressUpdate);
-
-    const { error: progressUpdateError } = await supabase
-      .from('task_progress_update')
-      .insert([progressUpdate]);
-
-    if (progressUpdateError) {
-      console.error('Failed to log progress update:', progressUpdateError);
-    }
-  }
-
-  // Update task
-  const { data: task_data, error } = await supabase
-    .from('tasks')
-    .update(updates)
-    .eq('id', task.id)
-    .select()
-    .single();
-
-  if (error) {
-    console.error('Error updating task:', error);
-    throw error;
-  }
-
-  if (!task_data) return null;
-
-  // Get creator profile
-  let createdByName = 'Unknown';
-  if (task_data.created_by_id) {
-    const { data: creatorData } = await supabase
-      .from('profiles')
-      .select('name')
-      .eq('id', task_data.created_by_id)
+    const { data: existingTask, error: fetchError } = await supabase
+      .from('tasks')
+      .select('due_date, progress, created_by_id, assigned_to_id')
+      .eq('id', task.id)
       .single();
-    if (creatorData) {
-      createdByName = creatorData.name;
-    }
-  }
+console.log("------------------189--------------",existingTask,"-----------------error--------------",fetchError);
 
-  // Get assignee profile
-  let assignedToName = task.assignedToName || 'Unassigned';
-  if (task_data.assigned_to_id && !task.assignedToName) {
-    const { data: assigneeData } = await supabase
-      .from('profiles')
-      .select('name')
-      .eq('id', task_data.assigned_to_id)
+    if (fetchError || !existingTask) {
+      console.error('Failed to fetch current task:', fetchError);
+      return null;
+    }
+
+    const oldDueDate = existingTask.due_date;
+    const oldProgress = existingTask.progress;
+    const newDueDate = task.dueDate;
+    const newProgress = task.progress;
+
+    if (newDueDate !== undefined && new Date(newDueDate).getTime() !== new Date(oldDueDate).getTime()) {
+      updates.due_date = newDueDate;
+
+      const dueChange = {
+        task_id: task.id,
+        last_due_date: oldDueDate,
+        updated_due_date: newDueDate,
+        reason_to_change: task.reasonToChangeDueDate || 'Updated via system',
+        created_at: new Date().toISOString(),
+      };
+console.log("------------------211--------------",dueChange);
+
+      const { error: dueDateError } = await supabase
+        .from('due_date_change')
+        .insert([dueChange]);
+
+      if (dueDateError) {
+        console.log("due_date_error",dueDateError);
+        
+        console.error('Failed to log due date change:', dueDateError);
+      }
+    }
+
+    if (newProgress !== undefined && newProgress !== oldProgress) {
+      const progressUpdate = {
+        task_id: task.id,
+        previous_progress: oldProgress,
+        current_progress: newProgress,
+        updates: task.progressUpdateNote || 'Updated via system',
+        created_at: new Date().toISOString(),
+      };
+
+      const { error: progressUpdateError } = await supabase
+        .from('task_progress_update')
+        .insert([progressUpdate]);
+
+      if (progressUpdateError) {
+        console.error('Failed to log progress update:', progressUpdateError);
+      }
+    }
+
+    const { data: task_data, error: updateError } = await supabase
+      .from('tasks')
+      .update(updates)
+      .eq('id', task.id)
+      .select()
       .single();
-    if (assigneeData) {
-      assignedToName = assigneeData.name;
-    }
-  }
 
-  return {
-    id: task_data.id,
-    title: task_data.title,
-    notes: task_data.notes,
-    icon: task_data.icon || '📝',
-    progress: task_data.progress,
-    createdById: task_data.created_by_id,
-    createdByName,
-    assignedToId: task_data.assigned_to_id,
-    assignedToName,
-    dueDate: task_data.due_date,
-    completed: task_data.completed,
-    quadrant: task_data.quadrant as Quadrant,
-    createdAt: task_data.created_at,
-    updatedAt: task_data.updated_at
-  };
-}
-,
-  // Delete a task
+    if (updateError || !task_data) {
+      console.error('Error updating task:', updateError);
+      throw updateError;
+    }
+
+    const userIds = [task_data.created_by_id, task_data.assigned_to_id].filter(Boolean);
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, name')
+      .in('id', userIds);
+
+    const profileMap = new Map<string, string>();
+    for (const profile of profiles || []) {
+      profileMap.set(profile.id, profile.name);
+    }
+
+    return {
+      id: task_data.id,
+      title: task_data.title,
+      notes: task_data.notes,
+      icon: task_data.icon || '📝',
+      progress: task_data.progress,
+      createdById: task_data.created_by_id,
+      createdByName: profileMap.get(task_data.created_by_id) || 'Unknown',
+      assignedToId: task_data.assigned_to_id,
+      assignedToName: profileMap.get(task_data.assigned_to_id) || 'Unassigned',
+      dueDate: task_data.due_date,
+      completed: task_data.completed,
+      quadrant: task_data.quadrant as Quadrant,
+      createdAt: task_data.created_at,
+      updatedAt: task_data.updated_at
+    };
+  },
+
   async deleteTask(taskId: string): Promise<void> {
     const { error } = await supabase
       .from('tasks')
@@ -343,3 +292,4 @@ console.log("progressUpdate: ",progressUpdate);
     }
   }
 };
+ 

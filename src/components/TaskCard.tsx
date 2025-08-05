@@ -67,9 +67,10 @@ function TaskCard({ task }: TaskCardProps) {
   };
   
   return (
-    <Card 
+   <Card
       ref={cardRef}
-      className={`w-full cursor-grab relative ${isDragging ? 'opacity-50' : ''} text-sm`}
+      className={`w-full cursor-grab relative text-sm ${isDragging ? 'opacity-50' : ''}
+hover:bg-gray-200 hover:shadow-lg hover:scale-95 hover:-translate-y-1 transition duration-200 ease-in-out`}
       draggable={true}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
@@ -84,9 +85,15 @@ function TaskCard({ task }: TaskCardProps) {
             <div className="flex-shrink-0">
               <TaskCompletionToggle task={task} />
             </div>
-            <h3 className={`font-medium text-xs ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
-              {task.title}
-            </h3>
+            <h3
+  className={`
+    font-medium text-xs
+    ${task.completed || task.progress === 100 ? 'line-through text-muted-foreground' : ''}
+  `}
+>
+  {task.title}
+</h3>
+
           </div>
           <div className="text-base">{task.icon || '📝'}</div>
         </div>
@@ -94,7 +101,7 @@ function TaskCard({ task }: TaskCardProps) {
       <CardContent className="p-2 pt-0 pb-1">
       
 
-      <div className="flex items-center gap-2 mb-1">
+      {/* <div className="flex items-center gap-2 mb-1">
   {task.assignedToName && (
     <Badge variant="outline" className="text-xs flex items-center gap-1">
       <UserCheck size={10} />
@@ -109,7 +116,7 @@ function TaskCard({ task }: TaskCardProps) {
       {task.createdByName}
     </Badge>
   )}
-</div>
+</div> */}
 
 
         {task.notes && (
