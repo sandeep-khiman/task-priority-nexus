@@ -208,7 +208,7 @@ useEffect(() => {
       case 'super-manager':
         // Super managers can see all users where they are the manager (user.manager_id === user.id)
         const allUsers = await userService.getUsers();
-        fetchedUsers = allUsers.filter(u => u.managerId === profile.id);
+        fetchedUsers = allUsers.filter(u => u.managerId === profile.id||u.id === profile.id);
         break;
         
       case 'manager':
