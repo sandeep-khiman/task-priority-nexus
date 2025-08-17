@@ -6,7 +6,6 @@ export enum Quadrant {
   NotImportant_NotUrgent = 4,
   Routine_Tasks = 5
 }
-
 export interface Task {
   id: string;
   title: string;
@@ -15,14 +14,14 @@ export interface Task {
   progress: number;
   createdById: string;
   createdByName: string;
-  assignedToId: string;
-  assignedToName: string;
+  assignees: { id: string; name: string }[]; // Multiple assignees
   dueDate?: string | null;
   completed: boolean;
   quadrant: Quadrant;
   createdAt: string;
   updatedAt: string;
 }
+
 
 export interface DueDateChange {
   id: string;

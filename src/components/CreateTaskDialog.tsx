@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { useTaskContext } from '@/contexts/TaskContext';
@@ -11,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { CalendarIcon, Plus } from 'lucide-react';
 import { Quadrant } from '@/types/task';
@@ -23,8 +23,7 @@ const initialTaskState = {
   progress: 0,
   createdById: '',
   createdByName: '',
-  assignedToId: '',
-  assignedToName: '',
+  assigneeIds: [] as string[], // updated
   dueDate: null as string | null,
   completed: false,
   quadrant: 1 as Quadrant
@@ -40,40 +39,51 @@ export function CreateTaskDialog() {
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [assignableUsers, setAssignableUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  
+
   // Fetch users that can be assigned tasks
   useEffect(() => {
     if (open && user) {
       const users = getVisibleUsers();
       setAssignableUsers(users);
-      
-      // Default to assigning to self if no assignee is selected
-      if (!taskData.assignedToId && profile) {
+
+      // Default to self if no assignee selected
+      if (taskData.assigneeIds.length === 0 && profile) {
         setTaskData(prev => ({
           ...prev,
-          assignedToId: profile.id,
-          assignedToName: profile.name
+          assigneeIds: [profile.id]
         }));
       }
     }
-  }, [open, user, profile, getVisibleUsers, taskData.assignedToId]);
-  
+  }, [open, user, profile, getVisibleUsers, taskData.assigneeIds.length]);
+
+  const toggleAssignee = (id: string) => {
+    setTaskData(prev => {
+      const exists = prev.assigneeIds.includes(id);
+      return {
+        ...prev,
+        assigneeIds: exists
+          ? prev.assigneeIds.filter(aid => aid !== id)
+          : [...prev.assigneeIds, id]
+      };
+    });
+  };
+
   const handleCreateTask = async () => {
-    if (!profile || !taskData.title || !taskData.assignedToId) return;
-    
+    if (!profile || !taskData.title || taskData.assigneeIds.length === 0) return;
+
     setIsLoading(true);
-    
+
     try {
-      // Find assigned user name
-      const assignedUser = assignableUsers.find(u => u.id === taskData.assignedToId);
-      
+      const assignedUsers = assignableUsers.filter(u => taskData.assigneeIds.includes(u.id));
+      const assignedNames = assignedUsers.map(u => u.name || '');
+
       await createTask({
         ...taskData,
         createdById: profile.id,
         createdByName: profile.name || '',
-        assignedToName: assignedUser?.name || ''
+        assignedToNames: assignedNames // pass multiple names if needed
       });
-      
+
       // Reset form
       setTaskData(initialTaskState);
       setDate(undefined);
@@ -95,37 +105,37 @@ export function CreateTaskDialog() {
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Create New Task</DialogTitle>
-          <DialogDescription>Create a new task and assign it to a team member</DialogDescription>
+          <DialogDescription>Create a new task and assign it to team members</DialogDescription>
         </DialogHeader>
-        
+
         <div className="space-y-4 py-4">
           <div className="grid gap-2">
             <Label htmlFor="task-title">Title</Label>
-            <Input 
-              id="task-title" 
-              value={taskData.title} 
-              onChange={(e) => setTaskData({...taskData, title: e.target.value})} 
+            <Input
+              id="task-title"
+              value={taskData.title}
+              onChange={(e) => setTaskData({ ...taskData, title: e.target.value })}
               placeholder="Task title..."
             />
           </div>
-          
+
           <div className="grid gap-2">
             <Label htmlFor="task-notes">Notes</Label>
-            <Textarea 
-              id="task-notes" 
-              value={taskData.notes} 
-              onChange={(e) => setTaskData({...taskData, notes: e.target.value})}
+            <Textarea
+              id="task-notes"
+              value={taskData.notes}
+              onChange={(e) => setTaskData({ ...taskData, notes: e.target.value })}
               placeholder="Task details..."
               rows={3}
             />
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label>Icon</Label>
-              <Select 
-                value={taskData.icon} 
-                onValueChange={(value) => setTaskData({...taskData, icon: value})}
+              <Select
+                value={taskData.icon}
+                onValueChange={(value) => setTaskData({ ...taskData, icon: value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select icon" />
@@ -142,15 +152,17 @@ export function CreateTaskDialog() {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="grid gap-2">
               <Label>Priority Quadrant</Label>
-              <Select 
-                value={taskData.quadrant.toString()} 
-                onValueChange={(value) => setTaskData({
-                  ...taskData, 
-                  quadrant: parseInt(value) as Quadrant
-                })}
+              <Select
+                value={taskData.quadrant.toString()}
+                onValueChange={(value) =>
+                  setTaskData({
+                    ...taskData,
+                    quadrant: parseInt(value) as Quadrant
+                  })
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select quadrant" />
@@ -165,7 +177,7 @@ export function CreateTaskDialog() {
               </Select>
             </div>
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label>Due Date</Label>
@@ -198,32 +210,54 @@ export function CreateTaskDialog() {
                 </PopoverContent>
               </Popover>
             </div>
-            
+
             <div className="grid gap-2">
               <Label>Assign To</Label>
-              <Select 
-                value={taskData.assignedToId || ''} 
-                onValueChange={(value) => setTaskData({...taskData, assignedToId: value})}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select user" />
-                </SelectTrigger>
-                <SelectContent>
-                  {assignableUsers.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.name} {user.id === profile?.id ? '(You)' : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between">
+                    {taskData.assigneeIds.length > 0
+                      ? `${taskData.assigneeIds.length} selected`
+                      : "Select users"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-2">
+                  <div
+                    className="max-h-60 overflow-y-auto"
+                    onWheel={(e) => e.stopPropagation()}
+                  >
+                    <div className="space-y-2">
+                      {assignableUsers.map((u) => {
+                        const isSelected = taskData.assigneeIds.includes(u.id);
+                        return (
+                          <div
+                            key={u.id}
+                            className="flex items-center space-x-2 p-1 rounded-md cursor-pointer hover:bg-accent"
+                            onClick={() => toggleAssignee(u.id)}
+                          >
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={() => toggleAssignee(u.id)}
+                            />
+                            <span className="select-none">
+                              {u.name} {u.id === profile?.id ? "(You)" : ""}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
+
           </div>
         </div>
-        
+
         <div className="flex justify-end">
-          <Button 
-            onClick={handleCreateTask} 
-            disabled={!taskData.title || !taskData.assignedToId || isLoading}
+          <Button
+            onClick={handleCreateTask}
+            disabled={!taskData.title || taskData.assigneeIds.length === 0 || isLoading}
           >
             {isLoading ? 'Creating...' : 'Create Task'}
           </Button>

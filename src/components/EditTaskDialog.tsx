@@ -69,6 +69,8 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Tabs } from "@radix-ui/react-tabs";
+import { Checkbox } from "./ui/checkbox";
+import { useAuth } from "@/contexts/AuthContext";
 
 const formSchema = z
   .object({
@@ -79,7 +81,7 @@ const formSchema = z
     dueDate: z.date().nullable(),
     lastDueDate: z.date().nullable(),
     dueDateReason: z.string().optional(),
-    assignedToId: z.string().min(1, { message: "Please select an assignee" }),
+    assignees: z.array(z.string()).min(1, { message: "Please select at least one user" }),
     progress: z.number().int().min(0).max(100),
     progressUpdateNote: z.string().optional(),
   })
@@ -121,7 +123,7 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
   );
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isProgressSheetOpen, setIsProgressSheetOpen] = useState(false);
-
+  const { profile } = useAuth();
   const {
     updateTask,
     getVisibleUsers,
@@ -161,6 +163,7 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
     }
   }, [open, task.id, fetchLatestProgressChange, fetchProgressChanges]);
 
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -169,71 +172,67 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
       icon: task.icon,
       quadrant: task.quadrant,
       dueDate: task.dueDate ? new Date(task.dueDate) : null,
-      assignedToId: task.assignedToId,
-      progress: task.progress,
       lastDueDate: task.dueDate ? new Date(task.dueDate) : null,
       dueDateReason: dueDateChangeReason,
+      assignees: task.assignees?.map((u) => u.id) || [], // now array of IDs
+      progress: task.progress,
       progressUpdateNote: progressChangeUpdate,
     },
   });
 
+
+
   const onSubmit = async (values: FormValues) => {
-    try {
-      const selectedUser = visibleUsers.find(
-        (user) => user.id === values.assignedToId
-      );
+  try {
+    const selectedUsers = visibleUsers.filter((user) =>
+      values.assignees.includes(user.id)
+    );
 
-      if (!selectedUser) {
-        toast({
-          title: "Error",
-          description: "Selected user not found",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const hasDueDateChanged =
-        values.dueDate &&
-        task.dueDate &&
-        new Date(values.dueDate).toISOString() !== task.dueDate;
-
-      const hasProgressChanged =
-        values.progress && task.progress && values.progress !== task.progress;
-
-      console.log("Progress-----------------------", hasProgressChanged);
-      var data = await updateTask({
-        ...task,
-        title: values.title,
-        notes: values.notes || "",
-        icon: values.icon || "📋",
-        quadrant: values.quadrant as Quadrant,
-        dueDate: values.dueDate ? values.dueDate.toISOString() : null,
-        assignedToId: selectedUser.id,
-        assignedToName: selectedUser.name,
-        progress: values.progress,
-        dueDateChangeReason: hasDueDateChanged
-          ? dueDateChangeReason
-          : undefined,
-        progressUpdateNote: hasProgressChanged
-          ? progressChangeUpdate
-          : undefined,
-      });
-
-      toast({
-        title: "Success",
-        description: "Task updated successfully",
-      });
-      setOpen(false);
-
-    } catch (error) {
-      console.error("Error updating task:", error);
+    if (selectedUsers.length === 0) {
       toast({
         title: "Error",
-        description: "Failed to update task",
+        description: "No valid assignees selected",
         variant: "destructive",
       });
+      return;
     }
-  };
+
+    const hasDueDateChanged =
+      values.dueDate &&
+      task.dueDate &&
+      new Date(values.dueDate).toISOString() !== task.dueDate;
+
+    const hasProgressChanged = values.progress !== task.progress;
+
+    await updateTask({
+      ...task,
+      title: values.title,
+      notes: values.notes || "",
+      icon: values.icon || "📋",
+      quadrant: values.quadrant as Quadrant,
+      dueDate: values.dueDate ? values.dueDate.toISOString() : null,
+      assignees: selectedUsers.map((u) => ({ id: u.id, name: u.name })), // ✅ FIXED
+      progress: values.progress,
+      reasonToChangeDueDate: hasDueDateChanged ? values.dueDateReason : undefined, // ✅ name aligned
+      progressUpdateNote: hasProgressChanged ? values.progressUpdateNote : undefined, // ✅ name aligned
+    });
+
+    toast({
+      title: "Success",
+      description: "Task updated successfully",
+    });
+    setOpen(false);
+  } catch (error) {
+    console.error("Error updating task:", error);
+    toast({
+      title: "Error",
+      description: "Failed to update task",
+      variant: "destructive",
+    });
+  }
+};
+
+
 
   const quadrantOptions = [
     { value: 1, label: "Urgent & Important" },
@@ -367,33 +366,64 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
               />
 
               <FormField
-                control={form.control}
-                name="assignedToId"
-                render={({ field }) => (
-                  <FormItem className="flex-col">
-                    <FormLabel>Assigned To</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a team member" />
-                          <Users className="h-4 w-4 ml-1 opacity-50" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {visibleUsers.map((user) => (
-                          <SelectItem key={user.id} value={user.id}>
-                            {user.name} ({user.role})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+  control={form.control}
+  name="assignees"
+  render={({ field }) => (
+    <FormItem>
+      <FormLabel>Assign To</FormLabel>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" className="w-full justify-between">
+            {field.value?.length > 0
+              ? `${field.value.length} selected`
+              : "Select users"}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-56 p-2">
+          <div
+            className="max-h-60 overflow-y-auto"
+            onWheel={(e) => e.stopPropagation()}
+          >
+            <div className="space-y-2">
+              {visibleUsers.map((user) => {
+                const isSelected = field.value?.includes(user.id);
+                return (
+                  <div
+                    key={user.id}
+                    className="flex items-center space-x-2 p-1 rounded-md cursor-pointer hover:bg-accent"
+                    onClick={() => {
+                      if (isSelected) {
+                        field.onChange(field.value.filter((id: string) => id !== user.id));
+                      } else {
+                        field.onChange([...(field.value || []), user.id]);
+                      }
+                    }}
+                  >
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={() => {
+                        if (isSelected) {
+                          field.onChange(field.value.filter((id: string) => id !== user.id));
+                        } else {
+                          field.onChange([...(field.value || []), user.id]);
+                        }
+                      }}
+                    />
+                    <span className="select-none">
+                      {user.name} {user.id === profile?.id ? "(You)" : ""}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+      <FormMessage />
+    </FormItem>
+  )}
+/>
+
             </div>
 
             <div className="grid grid-cols-2 gap-4">

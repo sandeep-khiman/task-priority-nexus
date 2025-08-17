@@ -23,7 +23,7 @@ interface TaskContextType {
   filter: TaskFilterState;
   setFilter: React.Dispatch<React.SetStateAction<TaskFilterState>>;
   createTask: (task: any) => Promise<void>;
-  updateTask: (task: any) => Promise<void>;
+  updateTask: (task: any) => Promise<any>;
   deleteTask: (taskId: string) => Promise<void>;
   getVisibleUsers: () => User[];
   moveTask: (taskId: string, quadrant: Quadrant) => Promise<void>;
@@ -166,31 +166,39 @@ useEffect(() => {
   };
 
   const fetchMyTasks = async () => {
-    if (!user) return;
-    
-    setIsLoading(true);
-    try {
-      const fetchedTasks = await taskService.getTasks();
-      
-      // Update tasks with appropriate quadrants based on due dates
-      const updatedTasks = fetchedTasks.map(task => ({
-        ...task,
-        quadrant: task.quadrant ?? determineTaskQuadrant(task, settings)
-      }));
-      
-      setTasks(updatedTasks);
-      setError(null);
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch tasks');
-      toast({
-        title: 'Error',
-        description: 'Failed to load tasks',
-        variant: 'destructive'
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  if (!user) return;
+
+  setIsLoading(true);
+  try {
+    const fetchedTasks = await taskService.getTasks();
+
+    // Filter only tasks where the current user is one of the assignees
+    const myTasks = fetchedTasks.filter(task =>
+      Array.isArray(task.assignees) &&
+      task.assignees.some(assignee => assignee.id === user.id)
+    );
+
+    // Update tasks with appropriate quadrants based on due dates
+    const updatedTasks = myTasks.map(task => ({
+      ...task,
+      quadrant: task.quadrant ?? determineTaskQuadrant(task, settings)
+    }));
+
+    setTasks(updatedTasks);
+    setError(null);
+  } catch (err: any) {
+    setError(err.message || 'Failed to fetch tasks');
+    toast({
+      title: 'Error',
+      description: 'Failed to load tasks',
+      variant: 'destructive'
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+
 
   // Fetch users based on the current user's role
   const fetchUsers = async () => {
@@ -246,18 +254,22 @@ useEffect(() => {
     
     setIsLoading(true);
     try {
+    console.log("taskData---------",taskData);
+
       // Determine the appropriate quadrant based on due date
       const quadrant = taskData.quadrant || 
         (taskData.dueDate ? determineTaskQuadrant({
           ...taskData,
           dueDate: taskData.dueDate
         } as Task, settings) : 4);
+    console.log("quadrant---------",quadrant);
       
       const newTask = await taskService.createTask({
         ...taskData,
         createdById: user.id,
         quadrant
       });
+    console.log("newTask---------",newTask);
       
       setTasks(prevTasks => [newTask, ...prevTasks]);
       toast({
@@ -275,72 +287,185 @@ useEffect(() => {
       setIsLoading(false);
     }
   };
-
- // Update an existing task
 const updateTask = async (taskData: any) => {
+  const {
+    id,
+    assignees,
+    reasonToChangeDueDate,
+    progressUpdateNote,
+    ...taskFields
+  } = taskData;
 
-  setIsLoading(true);
-  
-  // Declare existingTask outside the try block so it's available in catch
-  const existingTask = tasks.find(t => t.id === taskData.id);
-  if (!existingTask) {
-    setIsLoading(false);
-    return;
+  // 1️⃣ Fetch the existing task (for comparison)
+  const { data: existingTask, error: fetchError } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (fetchError) {
+    throw fetchError;
   }
 
-  try {
-    console.log("taskData-------------",taskData,"existingTask--------------------",existingTask);
-    
-    // Optimistic update
-    try {
-  const updatedTask = {
-    ...existingTask,
-    ...taskData,
-    quadrant: taskData.dueDate
-  ? determineTaskQuadrant({ ...existingTask, ...taskData }, settings ?? defaultSettings)
-  : existingTask.quadrant
-
+  // Helper function to compare dates by timestamp
+  const isSameDate = (a: any, b: any) => {
+    const dateA = a ? new Date(a) : null;
+    const dateB = b ? new Date(b) : null;
+    if (!dateA || !dateB) return a === b;
+    return dateA.getTime() === dateB.getTime();
   };
 
-  console.log("Step 2 - Updated Task: ", updatedTask);
-  setTasks(prev => prev.map(t => t.id === taskData.id ? updatedTask : t));
-  console.log("Enter Step 3-------294---------------", tasks);
-} catch (err) {
-  console.error("Error during optimistic update:", err);
-  setIsLoading(false);
-  return;
-}
+  // 2️⃣ Update task core fields ONLY if there are changes
+  const fieldsToCheck = {
+    title: taskFields.title,
+    notes: taskFields.notes,
+    icon: taskFields.icon,
+    progress: taskFields.progress,
+    due_date: taskFields.dueDate,
+    completed: taskFields.completed,
+    quadrant: taskFields.quadrant,
+  };
 
-    
-    // Actual update
-    const dueDateChanged = existingTask.dueDate !== taskData.dueDate;
-    
-    const progressChanged = existingTask.progress !== taskData.progress;
-    console.log("progressChanged: ",progressChanged);
-    
-    const result = await taskService.updateTask({
-      ...taskData,
-      reasonToChangeDueDate: dueDateChanged ? taskData.dueDateChangeReason : undefined,
-      progressUpdateNote:progressChanged?taskData.progressUpdateNote:undefined
-    });
-console.log("result: ",result);
+  const changes: Record<string, { from: any; to: any }> = {};
 
-    // Verify update was successful
-    setTasks(prev => prev.map(t => t.id === result.id ? result : t));
-    
-    toast({ title: 'Task Updated', description: 'Task updated successfully' });
-  } catch (err) {
-    // Rollback optimistic update - now existingTask is available
-    setTasks(prev => prev.map(t => t.id === existingTask.id ? existingTask : t));
-    toast({
-      title: 'Error',
-      description: err.message || 'Failed to update task',
-      variant: 'destructive'
-    });
-  } finally {
-    setIsLoading(false);
+  for (const [key, newValue] of Object.entries(fieldsToCheck)) {
+    const oldValue = existingTask[key];
+    const changed =
+      key === "due_date"
+        ? !isSameDate(oldValue, newValue)
+        : oldValue !== newValue;
+
+    if (changed) {
+      changes[key] = { from: oldValue, to: newValue };
+    }
   }
+
+  let updatedTask = existingTask;
+
+  if (Object.keys(changes).length > 0) {
+    const { data, error: taskError } = await supabase
+      .from("tasks")
+      .update(fieldsToCheck)
+      .eq("id", id)
+      .select("*")
+      .single();
+
+    if (taskError) {
+      throw taskError;
+    }
+
+    updatedTask = data;
+  }
+
+  // 3️⃣ Track due date changes
+  if (existingTask.due_date !== taskFields.dueDate && reasonToChangeDueDate) {
+    const { error: dueDateError } = await supabase.from("due_date_change").insert([
+      {
+        task_id: id,
+        last_due_date: existingTask.due_date,
+        updated_due_date: taskFields.dueDate,
+        reason_to_change: reasonToChangeDueDate,
+      },
+    ]);
+
+    if (dueDateError) {
+      throw dueDateError;
+    }
+  }
+
+  // 4️⃣ Track progress updates
+  if (existingTask.progress !== taskFields.progress && progressUpdateNote) {
+    const { error: progressError } = await supabase.from("task_progress_update").insert([
+      {
+        task_id: id,
+        current_progress: taskFields.progress,
+        previous_progress: existingTask.progress,
+        updates: progressUpdateNote,
+      },
+    ]);
+
+    if (progressError) {
+      throw progressError;
+    }
+  }
+
+  // 5️⃣ Handle assignees
+  if (Array.isArray(assignees)) {
+    const { data: existingAssignees, error: fetchAssigneesError } = await supabase
+      .from("task_assignees")
+      .select("user_id")
+      .eq("task_id", id);
+
+    if (fetchAssigneesError) {
+      throw fetchAssigneesError;
+    }
+
+    const existingUserIds = existingAssignees?.map((a) => a.user_id) || [];
+    const newUserIds = assignees.map((a: { id: string }) => a.id);
+
+    const toDelete = existingUserIds.filter((userId) => !newUserIds.includes(userId));
+    const toAdd = assignees.filter((a: { id: string }) => !existingUserIds.includes(a.id));
+
+    if (toDelete.length > 0) {
+      const { error: deleteError } = await supabase
+        .from("task_assignees")
+        .delete()
+        .eq("task_id", id)
+        .in("user_id", toDelete);
+
+      if (deleteError) {
+        throw deleteError;
+      }
+    }
+
+    if (toAdd.length > 0) {
+      const { error: insertError } = await supabase.from("task_assignees").insert(
+        toAdd.map((a: { id: string; name: string }) => ({
+          task_id: id,
+          user_id: a.id,
+          assigned_by_id: profile.id || null, // ensure profile is in scope
+        }))
+      );
+
+      if (insertError) {
+        throw insertError;
+      }
+    }
+  }
+
+  // 6️⃣ Return full task with assignees + profile names
+  const { data: finalTask, error: finalError } = await supabase
+    .from("tasks")
+    .select(
+      `
+      *,
+      task_assignees (
+        user_id,
+        profiles!task_assignees_user_id_fkey ( id, name )
+      )
+    `
+    )
+    .eq("id", id)
+    .single();
+
+  if (finalError) {
+    throw finalError;
+  }
+
+  const response = {
+    ...finalTask,
+    assigneeIds: finalTask.task_assignees.map((ta: any) => ta.user_id),
+    assignedToNames: finalTask.task_assignees.map((ta: any) => ta.profiles?.name),
+    assignees: finalTask.task_assignees.map((ta: any) => ({
+      id: ta.profiles?.id || ta.user_id,
+      name: ta.profiles?.name || "Unknown",
+    })),
+  };
+
+  return response;
 };
+
+
   // Delete a task
   const deleteTask = async (taskId: string) => {
     setIsLoading(true);
@@ -448,8 +573,17 @@ console.log("result: ",result);
 
   // Return visible users based on permissions
   const getVisibleUsers = (): User[] => {
-    return users;
-  };
+  const currentUserId = profile.id;
+
+  const hasSelf = users.some(user => user.id === currentUserId);
+
+  const result = hasSelf ? users : [...users, profile];
+
+
+  return result;
+};
+
+
 
   // Fetch the latest due date change for a task
   const fetchLatestDueDateChange = async (taskId: string): Promise<DueDateChange | null> => {
@@ -536,26 +670,32 @@ const fetchLatestProgressChange = async (taskId: string): Promise<TaskProgressUp
       return [];
     }
   };
-
-  // Apply filters to tasks
+  
   const filteredTasks = tasks.filter(task => {
     // Filter by completion status
-    if (hideCompleted && (task.completed||task.progress===100)) {
+    if (hideCompleted && (task.completed || task.progress === 100)) {
       return false;
     }
-
-    // Filter by assignee
-    if (selectedUserId && task.assignedToId !== selectedUserId) {
+    
+    // Filter by assignee (now supports multiple assignees)
+    if (
+      selectedUserId &&
+      (!Array.isArray(task.assignees) || !task.assignees.some(a => String(a.id) === String(selectedUserId)))
+    ) {
       return false;
     }
 
     // Filter by search query
-    if (filter.searchQuery && !task.title.toLowerCase().includes(filter.searchQuery.toLowerCase())) {
+    if (
+      filter.searchQuery &&
+      !task.title.toLowerCase().includes(filter.searchQuery.toLowerCase())
+    ) {
       return false;
     }
 
     return true;
   });
+
 
   const value: TaskContextType = {
     tasks,

@@ -19,6 +19,8 @@ interface TaskCardProps {
 }
 
 function TaskCard({ task }: TaskCardProps) {
+  console.log();
+  
   const { profile } = useAuth();
   const { deleteTask } = useTaskContext();
   const [isDragging, setIsDragging] = useState(false);
@@ -26,17 +28,18 @@ function TaskCard({ task }: TaskCardProps) {
   
   // Check if user has permission to modify this task
   const canModifyTask = () => {
-    if (!profile) return false;
-    
-    if (profile.role === 'admin') return true;
-    if (profile.role === 'manager') {
-      return true; 
-    }
-    if (profile.role === 'team-lead') {
-      return true; 
-    }
-    return task.assignedToId === profile.id || task.createdById === profile.id;
-  };
+  if (!profile) return false;
+
+  if (['admin', 'manager', 'team-lead'].includes(profile.role)) return true;
+
+  // Check if user is in assignees array or is the creator
+  return (
+    (Array.isArray(task.assignees) &&
+      task.assignees.some(a => String(a.id) === String(profile.id))) ||
+    task.createdById === profile.id
+  );
+};
+
   
   const priorityColor = getPriorityColor(task);
   const priorityLabel = getPriorityLabel(task);
@@ -99,26 +102,6 @@ hover:bg-gray-200 hover:shadow-lg hover:scale-95 hover:-translate-y-1 transition
         </div>
       </CardHeader>
       <CardContent className="p-2 pt-0 pb-1">
-      
-
-      {/* <div className="flex items-center gap-2 mb-1">
-  {task.assignedToName && (
-    <Badge variant="outline" className="text-xs flex items-center gap-1">
-      <UserCheck size={10} />
-      <label >Assigned to :</label>
-      {task.assignedToName}
-    </Badge>
-  )}
-  {task.createdByName && (
-    <Badge variant="outline" className="text-xs flex items-center gap-1">
-      <UserPlus size={10} />
-      <label >Assigned by :</label>
-      {task.createdByName}
-    </Badge>
-  )}
-</div> */}
-
-
         {task.notes && (
           <p className="text-xs text-muted-foreground mt-1 mb-1 line-clamp-2">{task.notes}</p>
         )}

@@ -8,8 +8,7 @@ interface CreateTaskPayload {
   progress: number;
   createdById: string;
   createdByName: string;
-  assignedToId: string;
-  assignedToName: string;
+  assigneeIds: string[];
   dueDate?: string | null;
   completed: boolean;
   quadrant: Quadrant;
@@ -21,8 +20,7 @@ interface UpdateTaskPayload {
   notes?: string;
   icon?: string;
   progress?: number;
-  assignedToId?: string;
-  assignedToName?: string;
+  assignees?: Array<{ id: string; name: string }>; // ✅ matches function usage
   dueDate?: string | null;
   completed?: boolean;
   quadrant?: Quadrant;
@@ -30,41 +28,49 @@ interface UpdateTaskPayload {
   progressUpdateNote?: string;
 }
 
+
 export const taskService = {
+  /** Get all tasks with multi-assignees */
   async getTasks(): Promise<Task[]> {
+   
     const { data: tasksData, error: tasksError } = await supabase
       .from('tasks')
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (tasksError) {
-      console.error('Error fetching tasks:', tasksError);
-      throw tasksError;
-    }
-
+    if (tasksError) throw tasksError;
     if (!tasksData) return [];
 
-    const userIds = Array.from(
-      new Set(
-        tasksData.flatMap(task => [task.created_by_id, task.assigned_to_id])
-      )
-    ).filter(Boolean);
+    const taskIds = tasksData.map(t => t.id);
 
+    // Fetch all assignees
+    const { data: taskAssigneesData, error: taskAssigneesError } = await supabase
+      .from('task_assignees')
+      .select('task_id, profiles!task_assignees_user_id_fkey(id, name)  ')
+      .in('task_id', taskIds);
+
+    if (taskAssigneesError) throw taskAssigneesError;
+
+    const taskAssigneesMap = new Map<string, { id: string; name: string }[]>();
+    (taskAssigneesData || []).forEach(a => {
+      const profile = a.profiles as { id: string; name: string };
+      const current = taskAssigneesMap.get(a.task_id) || [];
+      taskAssigneesMap.set(a.task_id, [...current, { id: profile.id, name: profile.name }]);
+    });
+
+    // Fetch created_by profiles
+    const creatorIds = Array.from(new Set(tasksData.map(t => t.created_by_id))).filter(Boolean);
     const { data: profilesData, error: profilesError } = await supabase
       .from('profiles')
       .select('id, name')
-      .in('id', userIds);
+      .in('id', creatorIds);
 
-    if (profilesError) {
-      console.error('Error fetching profiles:', profilesError);
-      throw profilesError;
-    }
+    if (profilesError) throw profilesError;
 
     const profileMap = new Map<string, string>();
-    for (const profile of profilesData || []) {
-      profileMap.set(profile.id, profile.name);
-    }
+    (profilesData || []).forEach(p => profileMap.set(p.id, p.name));
 
+    
     return tasksData.map(task => ({
       id: task.id,
       title: task.title,
@@ -73,16 +79,16 @@ export const taskService = {
       progress: task.progress,
       createdById: task.created_by_id,
       createdByName: profileMap.get(task.created_by_id) || 'Unknown',
-      assignedToId: task.assigned_to_id,
-      assignedToName: profileMap.get(task.assigned_to_id) || 'Unassigned',
+      assignees: taskAssigneesMap.get(task.id) || [],
       dueDate: task.due_date,
       completed: task.completed,
       quadrant: task.quadrant as Quadrant,
       createdAt: task.created_at,
-      updatedAt: task.updated_at,
+      updatedAt: task.updated_at
     }));
   },
 
+  /** Get single task with multi-assignees */
   async getTaskById(taskId: string): Promise<Task | null> {
     const { data: task, error } = await supabase
       .from('tasks')
@@ -90,27 +96,23 @@ export const taskService = {
       .eq('id', taskId)
       .single();
 
-    if (error || !task) {
-      console.error('Error fetching task:', error);
-      return null;
-    }
+    if (error || !task) return null;
 
-    const userIds = [task.created_by_id, task.assigned_to_id].filter(Boolean);
+    const { data: taskAssignees, error: assigneeError } = await supabase
+      .from('task_assignees')
+      .select('profiles(id, name)')
+      .eq('task_id', taskId);
 
-    const { data: profiles, error: profilesError } = await supabase
+    if (assigneeError) throw assigneeError;
+
+    const assignees =
+      (taskAssignees || []).map(a => a.profiles as { id: string; name: string }) || [];
+
+    const { data: creatorProfile } = await supabase
       .from('profiles')
       .select('id, name')
-      .in('id', userIds);
-
-    if (profilesError) {
-      console.error('Error fetching profiles:', profilesError);
-      throw profilesError;
-    }
-
-    const profileMap = new Map<string, string>();
-    for (const profile of profiles || []) {
-      profileMap.set(profile.id, profile.name);
-    }
+      .eq('id', task.created_by_id)
+      .single();
 
     return {
       id: task.id,
@@ -119,9 +121,8 @@ export const taskService = {
       icon: task.icon || '📝',
       progress: task.progress,
       createdById: task.created_by_id,
-      createdByName: profileMap.get(task.created_by_id) || 'Unknown',
-      assignedToId: task.assigned_to_id,
-      assignedToName: profileMap.get(task.assigned_to_id) || 'Unassigned',
+      createdByName: creatorProfile?.name || 'Unknown',
+      assignees,
       dueDate: task.due_date,
       completed: task.completed,
       quadrant: task.quadrant as Quadrant,
@@ -130,166 +131,226 @@ export const taskService = {
     };
   },
 
-  async createTask(task: CreateTaskPayload): Promise<Task> {
-    const { data, error } = await supabase
-      .from('tasks')
-      .insert({
-        title: task.title,
-        notes: task.notes,
-        icon: task.icon,
-        progress: task.progress,
-        created_by_id: task.createdById,
-        assigned_to_id: task.assignedToId,
-        due_date: task.dueDate,
-        completed: task.completed,
-        quadrant: task.quadrant
-      })
-      .select()
-      .single();
+  /** Create task with multi-assignees */
+async createTask(task: CreateTaskPayload): Promise<Task> {
+  console.log("task---------", task);
 
-    if (error) {
-      console.error('Error creating task:', error);
-      throw error;
+  // Validate quadrant
+  if (task.quadrant < 1 || task.quadrant > 5) {
+    throw new Error('Quadrant must be between 1 and 5');
+  }
+
+  // Use get_user_role to check permissions
+  const { data: roleData, error: roleError } = await supabase.rpc('get_user_role', { 
+    user_id: task.createdById 
+  });
+
+  if (roleError || !roleData) {
+    throw new Error('Failed to retrieve user role');
+  }
+
+  // Check if the role is allowed to create tasks
+  const allowedRoles = ['admin', 'manager', 'super-manager'];
+  if (!allowedRoles.includes(roleData)) {
+    throw new Error('User not authorized to create tasks');
+  }
+
+  // Insert the task
+  const { data, error } = await supabase
+    .from('tasks')
+    .insert({
+      title: task.title,
+      notes: task.notes || '',
+      icon: task.icon || '📋', 
+      progress: task.progress || 0,
+      created_by_id: task.createdById,
+      due_date: task.dueDate,
+      completed: task.completed || false,
+      quadrant: task.quadrant
+    })
+    .select()
+    .single();
+
+  // Handle task insertion error
+  if (error) {
+    console.error("Error inserting task:", error);
+    throw error;
+  }
+
+  // Handle assignees
+  if (task.assigneeIds?.length) {
+    // Validate assignee IDs exist and are accessible
+    const { data: accessibleUserIds, error: accessError } = await supabase.rpc('get_accessible_user_ids', {
+      lookup_user_id: task.createdById
+    });
+
+    if (accessError) {
+      throw new Error('Failed to retrieve accessible user IDs');
     }
 
-    return {
-      id: data.id,
-      title: data.title,
-      notes: data.notes,
-      icon: data.icon || '📝',
-      progress: data.progress,
-      createdById: data.created_by_id,
-      createdByName: task.createdByName,
-      assignedToId: data.assigned_to_id,
-      assignedToName: task.assignedToName,
-      dueDate: data.due_date,
-      completed: data.completed,
-      quadrant: data.quadrant as Quadrant,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at
-    };
-  },
+    // Filter assignees to only those accessible to the creator
+    const validAssigneeIds = task.assigneeIds.filter(id => 
+      accessibleUserIds.includes(id)
+    );
 
-  async updateTask(task: UpdateTaskPayload): Promise<Task | null> {
-    const updates: any = {};
-    if (task.title !== undefined) updates.title = task.title;
-    if (task.notes !== undefined) updates.notes = task.notes;
-    if (task.icon !== undefined) updates.icon = task.icon;
-    if (task.progress !== undefined) updates.progress = task.progress;
-    if (task.assignedToId !== undefined) updates.assigned_to_id = task.assignedToId;
-    if (task.completed !== undefined) updates.completed = task.completed;
-    if (task.quadrant !== undefined) updates.quadrant = task.quadrant;
-    updates.updated_at = new Date().toISOString();
-
-    const { data: existingTask, error: fetchError } = await supabase
-      .from('tasks')
-      .select('due_date, progress, created_by_id, assigned_to_id')
-      .eq('id', task.id)
-      .single();
-console.log("------------------189--------------",existingTask,"-----------------error--------------",fetchError);
-
-    if (fetchError || !existingTask) {
-      console.error('Failed to fetch current task:', fetchError);
-      return null;
+    if (validAssigneeIds.length !== task.assigneeIds.length) {
+      console.warn('Some assignees were filtered out due to access restrictions');
     }
 
-    const oldDueDate = existingTask.due_date;
-    const oldProgress = existingTask.progress;
-    const newDueDate = task.dueDate;
-    const newProgress = task.progress;
+    // Insert assignees
+    if (validAssigneeIds.length) {
+      const assigneeRows = validAssigneeIds.map(id => ({
+        task_id: data.id,
+        user_id: id,
+        assigned_by_id: task.createdById
+      }));
 
-    if (newDueDate !== undefined && new Date(newDueDate).getTime() !== new Date(oldDueDate).getTime()) {
-      updates.due_date = newDueDate;
+      const { error: assigneeInsertError } = await supabase
+        .from('task_assignees')
+        .insert(assigneeRows);
 
-      const dueChange = {
-        task_id: task.id,
-        last_due_date: oldDueDate,
-        updated_due_date: newDueDate,
-        reason_to_change: task.reasonToChangeDueDate || 'Updated via system',
-        created_at: new Date().toISOString(),
-      };
-console.log("------------------211--------------",dueChange);
-
-      const { error: dueDateError } = await supabase
-        .from('due_date_change')
-        .insert([dueChange]);
-
-      if (dueDateError) {
-        console.log("due_date_error",dueDateError);
-        
-        console.error('Failed to log due date change:', dueDateError);
+      if (assigneeInsertError) {
+        console.error("Error inserting assignees:", assigneeInsertError);
+        throw assigneeInsertError;
       }
-    }
-
-    if (newProgress !== undefined && newProgress !== oldProgress) {
-      const progressUpdate = {
-        task_id: task.id,
-        previous_progress: oldProgress,
-        current_progress: newProgress,
-        updates: task.progressUpdateNote || 'Updated via system',
-        created_at: new Date().toISOString(),
-      };
-
-      const { error: progressUpdateError } = await supabase
-        .from('task_progress_update')
-        .insert([progressUpdate]);
-
-      if (progressUpdateError) {
-        console.error('Failed to log progress update:', progressUpdateError);
-      }
-    }
-
-    const { data: task_data, error: updateError } = await supabase
-      .from('tasks')
-      .update(updates)
-      .eq('id', task.id)
-      .select()
-      .single();
-
-    if (updateError || !task_data) {
-      console.error('Error updating task:', updateError);
-      throw updateError;
-    }
-
-    const userIds = [task_data.created_by_id, task_data.assigned_to_id].filter(Boolean);
-    const { data: profiles, error: profilesError } = await supabase
-      .from('profiles')
-      .select('id, name')
-      .in('id', userIds);
-
-    const profileMap = new Map<string, string>();
-    for (const profile of profiles || []) {
-      profileMap.set(profile.id, profile.name);
-    }
-
-    return {
-      id: task_data.id,
-      title: task_data.title,
-      notes: task_data.notes,
-      icon: task_data.icon || '📝',
-      progress: task_data.progress,
-      createdById: task_data.created_by_id,
-      createdByName: profileMap.get(task_data.created_by_id) || 'Unknown',
-      assignedToId: task_data.assigned_to_id,
-      assignedToName: profileMap.get(task_data.assigned_to_id) || 'Unassigned',
-      dueDate: task_data.due_date,
-      completed: task_data.completed,
-      quadrant: task_data.quadrant as Quadrant,
-      createdAt: task_data.created_at,
-      updatedAt: task_data.updated_at
-    };
-  },
-
-  async deleteTask(taskId: string): Promise<void> {
-    const { error } = await supabase
-      .from('tasks')
-      .delete()
-      .eq('id', taskId);
-
-    if (error) {
-      console.error('Error deleting task:', error);
-      throw error;
     }
   }
+
+  // Return the constructed Task object
+  return {
+    id: data.id,
+    title: data.title,
+    notes: data.notes,
+    icon: data.icon || '📋',
+    progress: data.progress,
+    createdById: data.created_by_id,
+    createdByName: task.createdByName,
+    assignees: task.assigneeIds?.map(id => ({ id, name: '' })) || [],
+    dueDate: data.due_date,
+    completed: data.completed,
+    quadrant: data.quadrant as Quadrant,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at
+  };
+},
+
+
+  /** Update task & assignees */
+  async updateTask(task: UpdateTaskPayload): Promise<Task | null> {
+    console.log("UpdateTaskPayload",task);
+    
+  const updates: any = {};
+  if (task.title !== undefined) updates.title = task.title;
+  if (task.notes !== undefined) updates.notes = task.notes;
+  if (task.icon !== undefined) updates.icon = task.icon;
+  if (task.progress !== undefined) updates.progress = task.progress;
+  if (task.completed !== undefined) updates.completed = task.completed;
+  if (task.quadrant !== undefined) updates.quadrant = task.quadrant;
+  if (task.dueDate !== undefined) updates.due_date = task.dueDate;
+  updates.updated_at = new Date().toISOString();
+
+  // ✅ Log due date & progress changes
+  if (task.dueDate !== undefined || task.progress !== undefined) {
+    const { data: oldTask } = await supabase
+      .from('tasks')
+      .select('due_date, progress')
+      .eq('id', task.id)
+      .single();
+
+    if (
+      oldTask?.due_date &&
+      task.dueDate &&
+      new Date(oldTask.due_date).getTime() !== new Date(task.dueDate).getTime()
+    ) {
+      await supabase.from('due_date_change').insert([{
+        task_id: task.id,
+        last_due_date: oldTask.due_date,
+        updated_due_date: task.dueDate,
+        reason_to_change: task.reasonToChangeDueDate || 'Updated via system',
+        created_at: new Date().toISOString(),
+      }]);
+    }
+
+    if (task.progress !== undefined && task.progress !== oldTask?.progress) {
+      await supabase.from('task_progress_update').insert([{
+        task_id: task.id,
+        previous_progress: oldTask?.progress,
+        current_progress: task.progress,
+        updates: task.progressUpdateNote || 'Updated via system',
+        created_at: new Date().toISOString(),
+      }]);
+    }
+  }
+
+  // ✅ Update main task
+  const { data: updatedTask, error: updateError } = await supabase
+    .from('tasks')
+    .update(updates)
+    .eq('id', task.id)
+    .select()
+    .single();
+
+  if (updateError) throw updateError;
+
+  // ✅ Update assignees only if provided
+  if (task.assignees) {
+    const newIds = task.assignees.map(a => a.id);
+
+    // 1. Fetch current assignees
+    const { data: currentAssignees } = await supabase
+      .from('task_assignees')
+      .select('user_id')
+      .eq('task_id', task.id);
+
+    const existingIds = (currentAssignees || []).map(a => a.user_id);
+
+    const toAdd = newIds.filter(id => !existingIds.includes(id));
+    const toRemove = existingIds.filter(id => !newIds.includes(id));
+
+    if (toRemove.length) {
+      await supabase
+        .from('task_assignees')
+        .delete()
+        .eq('task_id', task.id)
+        .in('user_id', toRemove);
+    }
+
+    if (toAdd.length) {
+      const newRows = toAdd.map(id => ({ task_id: task.id, user_id: id }));
+      await supabase.from('task_assignees').insert(newRows);
+    }
+  }
+
+  const { data: updatedAssignees } = await supabase
+    .from('task_assignees')
+    .select('profiles(id, name)')
+    .eq('task_id', task.id);
+
+  const assignees =
+    (updatedAssignees || []).map(a => a.profiles as { id: string; name: string });
+
+  return {
+    id: updatedTask.id,
+    title: updatedTask.title,
+    notes: updatedTask.notes,
+    icon: updatedTask.icon || '📝',
+    progress: updatedTask.progress,
+    createdById: updatedTask.created_by_id,
+    createdByName: '',
+    assignees,
+    dueDate: updatedTask.due_date,
+    completed: updatedTask.completed,
+    quadrant: updatedTask.quadrant as Quadrant,
+    createdAt: updatedTask.created_at,
+    updatedAt: updatedTask.updated_at,
+  };
+},
+  
+async deleteTask(taskId: string): Promise<void> {
+  console.log(taskId);
+  
+    await supabase.from('task_assignees').delete().eq('task_id', taskId);
+    const { error } = await supabase.from('tasks').delete().eq('id', taskId);
+    if (error) throw error;
+  }
 };
- 

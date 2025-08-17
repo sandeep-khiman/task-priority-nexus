@@ -23,13 +23,14 @@ const quadrantLabels: Record<Quadrant, string> = {
   5: 'Routine Tasks'
 };
 
-const quadrantIcons: Record<Quadrant, React.ReactNode> = {
+const quadrantIcons: Record<Quadrant, JSX.Element> = {
   1: <AlertTriangle className="w-4 h-4 text-red-500" />,
   2: <Target className="w-4 h-4 text-blue-500" />,
   3: <Clock className="w-4 h-4 text-amber-500" />,
   4: <HelpCircle className="w-4 h-4 text-gray-500" />,
-  5: <RotateCcw className="w-4 h-4 text-green-500" />
+  5: <RotateCcw className="w-4 h-4 text-green-500" />,
 };
+
 
 interface QuadrantProps {
   quadrant: Quadrant;
