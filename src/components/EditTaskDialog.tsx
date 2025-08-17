@@ -368,61 +368,70 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
               <FormField
   control={form.control}
   name="assignees"
-  render={({ field }) => (
-    <FormItem>
-      <FormLabel>Assign To</FormLabel>
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button variant="outline" className="w-full justify-between">
-            {field.value?.length > 0
-              ? `${field.value.length} selected`
-              : "Select users"}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-56 p-2">
-          <div
-            className="max-h-60 overflow-y-auto"
-            onWheel={(e) => e.stopPropagation()}
-          >
-            <div className="space-y-2">
-              {visibleUsers.map((user) => {
-                const isSelected = field.value?.includes(user.id);
-                return (
-                  <div
-                    key={user.id}
-                    className="flex items-center space-x-2 p-1 rounded-md cursor-pointer hover:bg-accent"
-                    onClick={() => {
-                      if (isSelected) {
-                        field.onChange(field.value.filter((id: string) => id !== user.id));
-                      } else {
-                        field.onChange([...(field.value || []), user.id]);
-                      }
-                    }}
-                  >
-                    <Checkbox
-                      checked={isSelected}
-                      onCheckedChange={() => {
+  render={({ field }) => {
+    const sortedUsers = [...visibleUsers].sort((a, b) => {
+      const aSelected = field.value?.includes(a.id) ? 0 : 1;
+      const bSelected = field.value?.includes(b.id) ? 0 : 1;
+      return aSelected - bSelected;
+    });
+
+    return (
+      <FormItem>
+        <FormLabel>Assign To</FormLabel>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="w-full justify-between">
+              {field.value?.length > 0
+                ? `${field.value.length} selected`
+                : "Select users"}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-56 p-2">
+            <div
+              className="max-h-60 overflow-y-auto"
+              onWheel={(e) => e.stopPropagation()}
+            >
+              <div className="space-y-2">
+                {sortedUsers.map((user) => {
+                  const isSelected = field.value?.includes(user.id);
+                  return (
+                    <div
+                      key={user.id}
+                      className="flex items-center space-x-2 p-1 rounded-md cursor-pointer hover:bg-accent"
+                      onClick={() => {
                         if (isSelected) {
                           field.onChange(field.value.filter((id: string) => id !== user.id));
                         } else {
                           field.onChange([...(field.value || []), user.id]);
                         }
                       }}
-                    />
-                    <span className="select-none">
-                      {user.name} {user.id === profile?.id ? "(You)" : ""}
-                    </span>
-                  </div>
-                );
-              })}
+                    >
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => {
+                          if (isSelected) {
+                            field.onChange(field.value.filter((id: string) => id !== user.id));
+                          } else {
+                            field.onChange([...(field.value || []), user.id]);
+                          }
+                        }}
+                      />
+                      <span className="select-none">
+                        {user.name} {user.id === profile?.id ? "(You)" : ""}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        </PopoverContent>
-      </Popover>
-      <FormMessage />
-    </FormItem>
-  )}
+          </PopoverContent>
+        </Popover>
+        <FormMessage />
+      </FormItem>
+    );
+  }}
 />
+
 
             </div>
 
