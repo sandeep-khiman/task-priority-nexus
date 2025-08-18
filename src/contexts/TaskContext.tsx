@@ -461,7 +461,8 @@ const updateTask = async (taskData: any) => {
       name: ta.profiles?.name || "Unknown",
     })),
   };
-
+  
+        fetchTasks();
   return response;
 };
 

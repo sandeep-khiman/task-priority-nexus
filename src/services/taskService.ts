@@ -150,7 +150,7 @@ async createTask(task: CreateTaskPayload): Promise<Task> {
   }
 
   // Check if the role is allowed to create tasks
-  const allowedRoles = ['admin', 'manager', 'super-manager'];
+  const allowedRoles = ['admin', 'manager', 'super-manager','employee','team-lead'];
   if (!allowedRoles.includes(roleData)) {
     throw new Error('User not authorized to create tasks');
   }

@@ -84,8 +84,6 @@ export function UserRoleManagement() {
       const fetchedUsers = await userService.getUsers();
       setUsers(fetchedUsers);
       console.log(users);
-
-      // Extract managers for the dropdown
       const managersList = fetchedUsers.filter(
         (user) => user.role === "manager"
       );

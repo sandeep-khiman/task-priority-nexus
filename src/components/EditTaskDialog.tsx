@@ -689,7 +689,6 @@ export function EditTaskDialog({ task }: EditTaskDialogProps) {
                     const newValue = values[0];
                     const currentValue = field.value || 0;
 
-                    // Only allow progress to increase
                     if (newValue < currentValue) return;
 
                     if (newValue > currentValue) {
